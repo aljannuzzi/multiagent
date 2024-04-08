@@ -1,17 +1,16 @@
-﻿namespace TBAStatReader
+﻿namespace TBAStatReader;
+
+internal class CircularCharArray(params char[] content)
 {
-    internal class CircularCharArray(params char[] content)
+    private int _pos = 0;
+
+    public char Next()
     {
-        private int _pos = 0;
-
-        public char Next()
+        if (++_pos >= content.Length)
         {
-            if (++_pos >= content.Length)
-            {
-                _pos = 0;
-            }
-
-            return content[_pos];
+            _pos = 0;
         }
+
+        return content[_pos];
     }
 }

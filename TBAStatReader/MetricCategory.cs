@@ -1,10 +1,9 @@
-﻿namespace TBAStatReader
+﻿namespace TBAStatReader;
+
+internal enum MetricCategory
 {
-    internal enum MetricCategory
-    {
-        Staging,
-        Auto,
-        Total,
-        PureTotal
-    }
+    Staging,
+    Auto,
+    Total,
+    PureTotal
 }
