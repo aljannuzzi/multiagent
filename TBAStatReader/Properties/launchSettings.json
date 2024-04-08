@@ -2,7 +2,7 @@
   "profiles": {
     "TBAStatReader": {
       "commandName": "Project",
-      "commandLineArgs": "--debug=true"
+      "commandLineArgs": "--debug=true --maxEvents=3"
     }
   }
 }

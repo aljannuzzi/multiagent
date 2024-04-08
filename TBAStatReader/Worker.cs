@@ -18,11 +18,14 @@
         private readonly HttpClient _client = httpFactory.CreateClient(nameof(Worker));
         private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
         private readonly ImmutableDictionary<string, ImmutableArray<string>> _matchesToExclude = (config.GetSection("excludeMatches").GetChildren().Select(i => (i["metric"]!, i["matchKey"]!)) ?? []).GroupBy(i => i.Item1, i => i.Item2, StringComparer.OrdinalIgnoreCase).ToImmutableDictionary(i => i.Key, i => i.ToImmutableArray(), StringComparer.OrdinalIgnoreCase);
+        private readonly int _maxNumEvents = int.Parse(config["maxEvents"] ?? "0");
 
-        private Best? _bestStage = null;
-        private Best? _bestAllianceAuto = null;
-        private Best? _bestTotal = null;
-        private Best? _bestPureTotal = null;
+        private Best _bestStage = new(MetricCategory.Staging, [], string.Empty, string.Empty, 0);
+        private Best _bestAllianceAuto = new(MetricCategory.Auto, [], string.Empty, string.Empty, 0);
+        private Best _bestTotal = new(MetricCategory.Total, [], string.Empty, string.Empty, 0);
+        private Best _bestPureTotal = new(MetricCategory.PureTotal, [], string.Empty, string.Empty, 0);
+
+        private readonly CircularCharArray _spinner = new('|', '/', '-', '\\');
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -30,55 +33,64 @@
             _client.DefaultRequestHeaders.Add("X-TBA-Auth-Key", _apiKey);
             _client.DefaultRequestHeaders.Accept.Add(new("application/json"));
 
-            var response = await _client.GetAsync(GetRelative("events/2024/simple"));
+            var response = await _client.GetAsync(GetRelative("events/2024/simple"), cancellationToken);
             var yearEvents = await response.Content.ReadFromJsonAsync<JsonArray>(cancellationToken: cancellationToken);
             ArgumentNullException.ThrowIfNull(yearEvents);
 
-            bool first = true;
-
-            var i = 0;
-            foreach (JsonObject yearEvent in yearEvents.Where(i => i is not null).Select(i => i!))
+            var eventNum = 0;
+            foreach (var yearEvent in yearEvents.Cast<JsonObject>())
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var eventKey = yearEvent["key"]!.GetValue<string>();
                 var eventName = yearEvent["name"]!.GetValue<string>();
 
-                var eventDetailResponse = await _client.GetAsync(GetRelative($"event/{eventKey}/matches"));
-                var eventDetailData = await eventDetailResponse.Content.ReadFromJsonAsync<JsonArray>();
+                var eventDetailResponse = await _client.GetAsync(GetRelative($"event/{eventKey}/matches"), cancellationToken);
+                var eventDetailData = await eventDetailResponse.Content.ReadFromJsonAsync<JsonArray>(cancellationToken: cancellationToken);
                 ArgumentNullException.ThrowIfNull(eventDetailData);
 
-                foreach (JsonObject match in eventDetailData.Where(i => i is not null).Select(i => i!))
+                if (eventDetailData.Count is not 0)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    ++eventNum;
+                    if (_maxNumEvents > 0 && eventNum > _maxNumEvents)
+                    {
+                        _log.LogInformation("Reached max number of events to process");
+                        break;
+                    }
 
-                    _log.LogDebug("{match}", match);
+                    foreach (var match in eventDetailData.Cast<JsonObject>())
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    TrackBestStagingScore(first, ref _bestStage, yearEvent, match!);
-                    TrackBestAutoScore(first, ref _bestAllianceAuto, yearEvent, match!);
-                    TrackBestScore(first, ref _bestTotal, ref _bestPureTotal, yearEvent, match!);
+                        _log.LogDebug("{match}", match);
 
-                    Console.Write('.');
-                    first = false;
+                        TrackBestStagingScore(yearEvent, match);
+                        TrackBestAutoScore(yearEvent, match);
+                        TrackBestScore(yearEvent, match);
+
+                        Console.CursorLeft = 0;
+                        Console.Write(_spinner.Next());
+                    }
+
+                    Console.CursorLeft = 0;
+                    Console.WriteLine(' ');
+                    _log.LogInformation($"{{eventName}} processed ({{matchCount}} {(eventDetailData.Count is 1 ? "match" : "matches")})", eventName, eventDetailData.Count);
                 }
-
-                Console.WriteLine();
-                _log.LogInformation("\n{eventName} processed.\n", eventName);
             }
 
-            _log.LogInformation("DONE!\n");
-            _log.LogInformation("Best Overall: {bestTotal}", _bestTotal);
-            _log.LogInformation("Best Pure: {bestPureTotal}", _bestPureTotal);
-            _log.LogInformation("Best Alliance Auto: {bestAllianceAuto}", _bestAllianceAuto);
-            _log.LogInformation("Best Staging: {bestStage}", _bestStage);
+            _log.LogInformation("{bestTotal}", _bestTotal);
+            _log.LogInformation("{bestPureTotal}", _bestPureTotal);
+            _log.LogInformation("{bestAllianceAuto}", _bestAllianceAuto);
+            _log.LogInformation("{bestStage}", _bestStage);
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         private Uri GetRelative(string relativePath) => new("https://www.thebluealliance.com/api/v3/" + relativePath);
 
-        private void TrackBestScore(bool first, ref Best? bestScore, ref Best? bestPureScore, JsonObject evt, JsonObject match)
+        private void TrackBestScore(JsonObject evt, JsonObject match)
         {
+            using var log = _log.BeginScope(nameof(TrackBestScore));
             var blueScore = match["alliances"]!["blue"]!["score"]!.GetValue<int>();
             var redScore = match["alliances"]!["red"]!["score"]!.GetValue<int>();
 
@@ -86,36 +98,47 @@
 
             _log.LogDebug("{event}/{matchName}\tRed Score: {redScore}\tBlue Score: {blueScore}", evt, matchName, redScore, blueScore);
 
-            var potentialBest = redScore > blueScore ? new Best(evt, matchName, "Red", redScore) : new Best(evt, matchName, "Blue", blueScore);
-            if (first)
+            var potentialBest = redScore > blueScore ? new Best(MetricCategory.Total, evt, matchName, "Red", redScore) : new Best(MetricCategory.Total, evt, matchName, "Blue", blueScore);
+            if (potentialBest.Points > -_bestTotal!.Points)
             {
-                bestScore = potentialBest;
-            }
-            else if (potentialBest.Points > bestScore!.Points)
-            {
-                bestScore = potentialBest;
+                _bestTotal = _bestTotal with
+                {
+                    Alliance = potentialBest.Alliance,
+                    Event = potentialBest.Event,
+                    Match = potentialBest.Match,
+                    Points = potentialBest.Points,
+                };
             }
 
             var blueFoulPoints = (match["score_breakdown"]?["blue"]!["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
             var redFoulPoints = (match["score_breakdown"]?["red"]!["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
             var adjustedBlueScore = blueScore - blueFoulPoints;
             var adjustedRedScore = redScore - redFoulPoints;
-            if (first)
+            if (adjustedRedScore > adjustedBlueScore && adjustedRedScore > _bestPureTotal!.Points)
             {
-                bestPureScore = adjustedRedScore > adjustedBlueScore ? new Best(evt, matchName, "Red", adjustedRedScore) : new Best(evt, matchName, "Blue", adjustedBlueScore);
+                _bestPureTotal = _bestPureTotal with
+                {
+                    Alliance = "Red",
+                    Event = evt,
+                    Match = matchName,
+                    Points = adjustedRedScore,
+                };
             }
-            else if (adjustedRedScore > adjustedBlueScore && adjustedRedScore > bestPureScore!.Points)
+            else if (adjustedBlueScore > adjustedRedScore && adjustedBlueScore > _bestPureTotal!.Points)
             {
-                bestPureScore = new Best(evt, matchName, "Red", adjustedRedScore);
-            }
-            else if (adjustedBlueScore > adjustedRedScore && adjustedBlueScore > bestPureScore!.Points)
-            {
-                bestPureScore = new Best(evt, matchName, "Blue", adjustedBlueScore);
+                _bestPureTotal = _bestPureTotal with
+                {
+                    Alliance = "Blue",
+                    Event = evt,
+                    Match = matchName,
+                    Points = adjustedBlueScore,
+                };
             }
         }
 
-        private void TrackBestStagingScore(bool first, ref Best? bestStage, JsonObject evt, JsonObject match)
+        private void TrackBestStagingScore(JsonObject evt, JsonObject match)
         {
+            using var log = _log.BeginScope(nameof(TrackBestStagingScore));
             var blueBreakdown = match.GetScoreBreakdownFor("blue");
             var blueEndgameTotalStagePoints = blueBreakdown?["endGameTotalStagePoints"]?.GetValue<int>();
             var redBreakdown = match.GetScoreBreakdownFor("red");
@@ -125,19 +148,22 @@
 
             _log.LogDebug("{event}/{matchName}\tRed Stage: {redStage}\tBlue Stage: {blueStage}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 
-            var potentialBest = redEndgameTotalStagePoints > blueEndgameTotalStagePoints ? new Best(evt, matchName, "Red", redEndgameTotalStagePoints.GetValueOrDefault(0)) : new Best(evt, matchName, "Blue", blueEndgameTotalStagePoints.GetValueOrDefault(0));
-            if (first)
+            var potentialBest = redEndgameTotalStagePoints > blueEndgameTotalStagePoints ? new Best(MetricCategory.Staging, evt, matchName, "Red", redEndgameTotalStagePoints.GetValueOrDefault(0)) : new Best(MetricCategory.Staging, evt, matchName, "Blue", blueEndgameTotalStagePoints.GetValueOrDefault(0));
+            if (potentialBest.Points > _bestStage.Points)
             {
-                bestStage = potentialBest;
-            }
-            else if (potentialBest.Points > bestStage!.Points)
-            {
-                bestStage = potentialBest;
+                _bestStage = _bestStage with
+                {
+                    Alliance = potentialBest.Alliance,
+                    Event = potentialBest.Event,
+                    Match = potentialBest.Match,
+                    Points = potentialBest.Points
+                };
             }
         }
 
-        private void TrackBestAutoScore(bool first, ref Best? bestAuto, JsonObject evt, JsonObject match)
+        private void TrackBestAutoScore(JsonObject evt, JsonObject match)
         {
+            using var log = _log.BeginScope(nameof(TrackBestAutoScore));
             string matchKey = match["key"]!.GetValue<string>();
             if (_matchesToExclude["auto"].Contains(matchKey, StringComparer.OrdinalIgnoreCase))
             {
@@ -154,14 +180,16 @@
 
             _log.LogDebug("{event}/{matchName}\tRed Auto: {redAuto}\tBlue Auto: {blueAuto}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 
-            var potentialBest = redEndgameTotalStagePoints > blueEndgameTotalStagePoints ? new Best(evt, matchName, "Red", redEndgameTotalStagePoints.GetValueOrDefault(0)) : new Best(evt, matchName, "Blue", blueEndgameTotalStagePoints.GetValueOrDefault(0));
-            if (first)
+            var potentialBest = redEndgameTotalStagePoints > blueEndgameTotalStagePoints ? new Best(MetricCategory.Staging, evt, matchName, "Red", redEndgameTotalStagePoints.GetValueOrDefault(0)) : new Best(MetricCategory.Staging, evt, matchName, "Blue", blueEndgameTotalStagePoints.GetValueOrDefault(0));
+            if (potentialBest.Points > _bestAllianceAuto!.Points)
             {
-                bestAuto = potentialBest;
-            }
-            else if (potentialBest.Points > bestAuto!.Points)
-            {
-                bestAuto = potentialBest;
+                _bestAllianceAuto = _bestAllianceAuto with
+                {
+                    Alliance = potentialBest.Alliance,
+                    Event = potentialBest.Event,
+                    Match = potentialBest.Match,
+                    Points = potentialBest.Points,
+                };
             }
         }
     }
