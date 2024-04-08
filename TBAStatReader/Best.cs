@@ -1,8 +1,8 @@
-﻿using System.Text.Json.Nodes;
+﻿using TBAAPI.V3Client.Model;
 
 using TBAStatReader;
 
-internal record Best(MetricCategory Category, JsonObject Event, string Match, string Alliance, int Points)
+internal record Best(MetricCategory Category, Event? Event, string Match, string Alliance, int Points)
 {
-    public override string ToString() => $@"Best {Category}: {Event["name"]} / {Match} / {Alliance}: {Points} points";
+    public override string ToString() => $@"Best {Category}: {(Event?.Name ?? "Undefined")} / {Match} / {Alliance}: {Points} points";
 }

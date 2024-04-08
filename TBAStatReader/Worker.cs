@@ -2,9 +2,6 @@
 {
     using System;
     using System.Collections.Immutable;
-    using System.Net.Http;
-    using System.Net.Http.Json;
-    using System.Text.Json.Nodes;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -12,41 +9,42 @@
     using Microsoft.Extensions.Hosting;
     using Microsoft.Extensions.Logging;
 
-    internal class Worker(IConfiguration config, IHttpClientFactory httpFactory, ILoggerFactory loggerFactory) : IHostedService
+    using TBAAPI.V3Client.Api;
+    using TBAAPI.V3Client.Client;
+    using TBAAPI.V3Client.Model;
+
+    internal class Worker(IConfiguration config, ApiClient client, Configuration clientConfig, ILoggerFactory loggerFactory) : IHostedService
     {
         private readonly string _apiKey = config["TBA_API_KEY"]!;
-        private readonly HttpClient _client = httpFactory.CreateClient(nameof(Worker));
+        private readonly ApiClient _client = client;
         private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
         private readonly ImmutableDictionary<string, ImmutableArray<string>> _matchesToExclude = (config.GetSection("excludeMatches").GetChildren().Select(i => (i["metric"]!, i["matchKey"]!)) ?? []).GroupBy(i => i.Item1, i => i.Item2, StringComparer.OrdinalIgnoreCase).ToImmutableDictionary(i => i.Key, i => i.ToImmutableArray(), StringComparer.OrdinalIgnoreCase);
         private readonly int _maxNumEvents = int.Parse(config["maxEvents"] ?? "0");
+        private readonly int _targetYear = int.Parse(config["year"] ?? DateTime.Now.Year.ToString());
 
-        private Best _bestStage = new(MetricCategory.Staging, [], string.Empty, string.Empty, 0);
-        private Best _bestAllianceAuto = new(MetricCategory.Auto, [], string.Empty, string.Empty, 0);
-        private Best _bestTotal = new(MetricCategory.Total, [], string.Empty, string.Empty, 0);
-        private Best _bestPureTotal = new(MetricCategory.PureTotal, [], string.Empty, string.Empty, 0);
+        private Best _bestStage = new(MetricCategory.Staging, default, string.Empty, string.Empty, 0);
+        private Best _bestAllianceAuto = new(MetricCategory.Auto, default, string.Empty, string.Empty, 0);
+        private Best _bestTotal = new(MetricCategory.Total, default, string.Empty, string.Empty, 0);
+        private Best _bestPureTotal = new(MetricCategory.PureTotal, default, string.Empty, string.Empty, 0);
 
         private readonly CircularCharArray _spinner = new('|', '/', '-', '\\');
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _log.LogDebug("API key: {apiKey}", _apiKey);
-            _client.DefaultRequestHeaders.Add("X-TBA-Auth-Key", _apiKey);
-            _client.DefaultRequestHeaders.Accept.Add(new("application/json"));
 
-            var response = await _client.GetAsync(GetRelative("events/2024/simple"), cancellationToken);
-            var yearEvents = await response.Content.ReadFromJsonAsync<JsonArray>(cancellationToken: cancellationToken);
+            var events = new EventApi(clientConfig);
+            var yearEvents = await events.GetEventsByYearAsync(_targetYear);
             ArgumentNullException.ThrowIfNull(yearEvents);
 
             var eventNum = 0;
-            foreach (var yearEvent in yearEvents.Cast<JsonObject>())
+            var matches = new MatchApi(clientConfig);
+            foreach (var yearEvent in yearEvents)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var eventKey = yearEvent["key"]!.GetValue<string>();
-                var eventName = yearEvent["name"]!.GetValue<string>();
-
-                var eventDetailResponse = await _client.GetAsync(GetRelative($"event/{eventKey}/matches"), cancellationToken);
-                var eventDetailData = await eventDetailResponse.Content.ReadFromJsonAsync<JsonArray>(cancellationToken: cancellationToken);
+                var eventName = yearEvent.Name;
+                var eventDetailData = await matches.GetEventMatchesAsync(yearEvent.Key);
                 ArgumentNullException.ThrowIfNull(eventDetailData);
 
                 if (eventDetailData.Count is not 0)
@@ -58,7 +56,7 @@
                         break;
                     }
 
-                    foreach (var match in eventDetailData.Cast<JsonObject>())
+                    foreach (var match in eventDetailData)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
@@ -88,13 +86,13 @@
 
         private Uri GetRelative(string relativePath) => new("https://www.thebluealliance.com/api/v3/" + relativePath);
 
-        private void TrackBestScore(JsonObject evt, JsonObject match)
+        private void TrackBestScore(Event evt, Match match)
         {
             using var log = _log.BeginScope(nameof(TrackBestScore));
-            var blueScore = match["alliances"]!["blue"]!["score"]!.GetValue<int>();
-            var redScore = match["alliances"]!["red"]!["score"]!.GetValue<int>();
+            var blueScore = match.Alliances.Blue.Score;
+            var redScore = match.Alliances.Red.Score;
 
-            var matchName = match.GetMatchName();
+            var matchName = match.Key;
 
             _log.LogDebug("{event}/{matchName}\tRed Score: {redScore}\tBlue Score: {blueScore}", evt, matchName, redScore, blueScore);
 
@@ -110,8 +108,8 @@
                 };
             }
 
-            var blueFoulPoints = (match["score_breakdown"]?["blue"]!["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
-            var redFoulPoints = (match["score_breakdown"]?["red"]!["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
+            var blueFoulPoints = (match.GetScoreBreakdownFor("blue")?["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
+            var redFoulPoints = (match.GetScoreBreakdownFor("red")?["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
             var adjustedBlueScore = blueScore - blueFoulPoints;
             var adjustedRedScore = redScore - redFoulPoints;
             if (adjustedRedScore > adjustedBlueScore && adjustedRedScore > _bestPureTotal!.Points)
@@ -136,7 +134,7 @@
             }
         }
 
-        private void TrackBestStagingScore(JsonObject evt, JsonObject match)
+        private void TrackBestStagingScore(Event evt, Match match)
         {
             using var log = _log.BeginScope(nameof(TrackBestStagingScore));
             var blueBreakdown = match.GetScoreBreakdownFor("blue");
@@ -144,7 +142,7 @@
             var redBreakdown = match.GetScoreBreakdownFor("red");
             var redEndgameTotalStagePoints = redBreakdown?["endGameTotalStagePoints"]?.GetValue<int>();
 
-            var matchName = match.GetMatchName();
+            var matchName = match.Key;
 
             _log.LogDebug("{event}/{matchName}\tRed Stage: {redStage}\tBlue Stage: {blueStage}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 
@@ -161,10 +159,10 @@
             }
         }
 
-        private void TrackBestAutoScore(JsonObject evt, JsonObject match)
+        private void TrackBestAutoScore(Event evt, Match match)
         {
             using var log = _log.BeginScope(nameof(TrackBestAutoScore));
-            string matchKey = match["key"]!.GetValue<string>();
+            string matchKey = match.Key;
             if (_matchesToExclude["auto"].Contains(matchKey, StringComparer.OrdinalIgnoreCase))
             {
                 _log.LogWarning("Skipped {match} due to exclusion", matchKey);
@@ -176,7 +174,7 @@
             var redBreakdown = match.GetScoreBreakdownFor("red");
             var redEndgameTotalStagePoints = redBreakdown?["autoPoints"]?.GetValue<int>();
 
-            var matchName = match.GetMatchName();
+            var matchName = match.Key;
 
             _log.LogDebug("{event}/{matchName}\tRed Auto: {redAuto}\tBlue Auto: {blueAuto}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 
