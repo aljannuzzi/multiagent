@@ -29,6 +29,7 @@ internal class Worker(IConfiguration config, ApiClient client, Configuration cli
 
     private readonly CircularCharArray _spinner = new('|', '/', '-', '\\');
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't have the code fixes to make this better at this time")]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _log.LogDebug("API key: {apiKey}", _apiKey);
