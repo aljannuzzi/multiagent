@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TBAStatReader": {
+      "commandName": "Project",
+      "commandLineArgs": "--debug=true"
+    }
+  }
+}
