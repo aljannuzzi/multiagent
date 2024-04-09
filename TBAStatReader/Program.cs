@@ -17,6 +17,7 @@ internal class Program
         };
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
+        b.Configuration.AddUserSecrets<Program>();
         b.Services.AddHostedService<Worker>()
             .AddHttpClient()
             .AddSingleton(sp => new TBAAPI.V3Client.Client.Configuration(new Dictionary<string, string>(), new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } }, new Dictionary<string, string>()) { DateTimeFormat = "yyyy-MM-dd" })

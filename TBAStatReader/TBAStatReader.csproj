@@ -5,16 +5,17 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<UserSecretsId>ee74e0c7-2dad-4fa0-8c51-0fc55ad1f52c</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="appsettings.json" />
+		<None Remove="appsettings.json" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Include="appsettings.json">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </Content>
+		<Content Include="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -23,14 +24,14 @@
 		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
 		<PackageReference Include="Microsoft.SemanticKernel" Version="1.7.1" />
 		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.9.28">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\tba-client\src\TBAAPI.V3Client\TBAAPI.V3Client.csproj" />
-	  <ProjectReference Include="..\TBALLMAgent\TBALLMAgent.csproj" />
+		<ProjectReference Include="..\tba-client\src\TBAAPI.V3Client\TBAAPI.V3Client.csproj" />
+		<ProjectReference Include="..\TBALLMAgent\TBALLMAgent.csproj" />
 	</ItemGroup>
 
 </Project>
