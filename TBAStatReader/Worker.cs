@@ -2,20 +2,31 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Azure.Identity;
+
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 using TBAAPI.V3Client.Api;
 using TBAAPI.V3Client.Client;
 using TBAAPI.V3Client.Model;
 
-internal class Worker(IConfiguration config, ApiClient client, Configuration clientConfig, ILoggerFactory loggerFactory) : IHostedService
+using TBALLMAgent;
+
+internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactory, ApiClient client, Configuration clientConfig, ILoggerFactory loggerFactory) : IHostedService
 {
     private readonly string _apiKey = config["TBA_API_KEY"]!;
+    private readonly bool _chatMode = config["chatMode"]?.Equals("true", StringComparison.OrdinalIgnoreCase) ?? false;
     private readonly ApiClient _client = client;
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
     private readonly ImmutableDictionary<string, ImmutableArray<string>> _matchesToExclude = (config.GetSection("excludeMatches").GetChildren().Select(i => (i["metric"]!, i["matchKey"]!)) ?? []).GroupBy(i => i.Item1, i => i.Item2, StringComparer.OrdinalIgnoreCase).ToImmutableDictionary(i => i.Key, i => i.ToImmutableArray(), StringComparer.OrdinalIgnoreCase);
@@ -27,12 +38,18 @@ internal class Worker(IConfiguration config, ApiClient client, Configuration cli
     private Best _bestTotal = new(MetricCategory.Total, default, string.Empty, string.Empty, 0);
     private Best _bestPureTotal = new(MetricCategory.PureTotal, default, string.Empty, string.Empty, 0);
 
-    private readonly CircularCharArray _spinner = new('|', '/', '-', '\\');
+    private readonly CircularCharArray _spinner = CircularCharArray.ProgressSpinner;
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't have the code fixes to make this better at this time")]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _log.LogDebug("API key: {apiKey}", _apiKey);
+
+        if (_chatMode)
+        {
+            await ExecuteChatModeAsync(cancellationToken);
+            return;
+        }
 
         var events = new EventApi(clientConfig);
         List<Event> yearEvents = await events.GetEventsByYearAsync(_targetYear);
@@ -83,6 +100,68 @@ internal class Worker(IConfiguration config, ApiClient client, Configuration cli
         _log.LogInformation("{bestStage}", _bestStage);
     }
 
+    private async Task ExecuteChatModeAsync(CancellationToken cancellationToken)
+    {
+        Console.WriteLine("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
+        IKernelBuilder builder = Kernel.CreateBuilder();
+        builder.Services.AddSingleton(loggerFactory);
+        builder.Plugins.AddFromObject(new TBAAgent(clientConfig))
+            .AddFromObject(new Calendar());
+
+        if (config["AzureOpenAIKey"] is not null)
+        {
+            builder.AddAzureOpenAIChatCompletion(config["AzureOpenDeployment"]!, config["AzureOpenAIEndpoint"]!, config["AzureOpenAIKey"]!, httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+        }
+        else
+        {
+            builder.AddAzureOpenAIChatCompletion(config["AzureOpenDeployment"]!, config["AzureOpenAIEndpoint"]!, new DefaultAzureCredential(), httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+        }
+
+        Kernel kernel = builder.Build();
+
+        var settings = new OpenAIPromptExecutionSettings
+        {
+            ChatSystemPrompt = "You are an information assistant for users asking questions about the FIRST Robotics competition. You have been given access to the data catalog of FIRST via API calls, use these to your advantage to answer questions about past and current events and matches in the competition. If you aren't able to figure out how to answer the question, tell the user in a polite way and ask them for another question. You will be given the chat history in a JSON format, use this as context into the conversation.",
+            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+        };
+
+        var chatHistory = new ChatHistory();
+        chatHistory.AddAssistantMessage("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
+
+        do
+        {
+            Console.Write("> ");
+            var question = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(question))
+            {
+                break;
+            }
+
+            chatHistory.AddUserMessage(question);
+
+            StringBuilder assistantResponse = new();
+            CircularCharArray progress = CircularCharArray.ProgressSpinner;
+            await foreach (StreamingKernelContent token in kernel.InvokePromptStreamingAsync(JsonSerializer.Serialize(chatHistory), new(settings), cancellationToken: cancellationToken))
+            {
+                var tokenString = token.ToString();
+                if (string.IsNullOrEmpty(tokenString))
+                {
+                    Console.Write(progress.Next());
+                    Console.CursorLeft--;
+
+                    continue;
+                }
+
+                Console.Write(tokenString);
+                assistantResponse.Append(tokenString);
+            }
+
+            chatHistory.AddAssistantMessage(assistantResponse.ToString());
+
+            Console.WriteLine();
+        }
+        while (!cancellationToken.IsCancellationRequested);
+    }
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     private static Uri GetRelative(string relativePath) => new("https://www.thebluealliance.com/api/v3/" + relativePath);

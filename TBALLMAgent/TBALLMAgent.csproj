@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.10.4" />
+    <PackageReference Include="JmesPath.Net" Version="1.0.330" />
+    <PackageReference Include="Microsoft.KernelMemory.SemanticKernelPlugin" Version="0.35.240321.1" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.7.1" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.9.28">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\tba-client\src\TBAAPI.V3Client\TBAAPI.V3Client.csproj" />
+  </ItemGroup>
+
+</Project>

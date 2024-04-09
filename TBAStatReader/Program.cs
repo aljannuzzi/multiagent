@@ -18,7 +18,8 @@ internal class Program
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
         b.Services.AddHostedService<Worker>()
-            .AddSingleton(sp => new TBAAPI.V3Client.Client.Configuration(new Dictionary<string, string>(), new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } }, new Dictionary<string, string>()))
+            .AddHttpClient()
+            .AddSingleton(sp => new TBAAPI.V3Client.Client.Configuration(new Dictionary<string, string>(), new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } }, new Dictionary<string, string>()) { DateTimeFormat = "yyyy-MM-dd" })
             .AddSingleton(_ => new TBAAPI.V3Client.Client.ApiClient("https://www.thebluealliance.com/api/v3"))
             .AddLogging(lb =>
                 lb.AddSimpleConsole(o =>

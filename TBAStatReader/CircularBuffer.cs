@@ -2,6 +2,8 @@
 
 internal class CircularCharArray(params char[] content)
 {
+    public static CircularCharArray ProgressSpinner => new('|', '/', '-', '\\');
+
     private int _pos = 0;
 
     public char Next()
