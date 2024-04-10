@@ -57,12 +57,12 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
 
         var eventNum = 0;
         var matches = new MatchApi(clientConfig);
-        foreach (Event? yearEvent in yearEvents)
+        foreach (Event yearEvent in yearEvents)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var eventName = yearEvent.Name;
-            List<Match> eventDetailData = await matches.GetEventMatchesAsync(yearEvent.Key);
+            List<Match> eventDetailData = await matches.GetEventMatchesAsync(yearEvent.Key!);
             ArgumentNullException.ThrowIfNull(eventDetailData);
 
             if (eventDetailData.Count is not 0)
@@ -169,14 +169,19 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
     private void TrackBestScore(Event evt, Match match)
     {
         using IDisposable? log = _log.BeginScope(nameof(TrackBestScore));
-        var blueScore = match.Alliances.Blue.Score;
-        var redScore = match.Alliances.Red.Score;
+        var blueScore = match.Alliances?.Blue?.Score;
+        var redScore = match.Alliances?.Red?.Score;
 
-        var matchName = match.Key;
+        if (blueScore is null || redScore is null)
+        {
+            return;
+        }
+
+        var matchName = match.Key!;
 
         _log.LogDebug("{event}/{matchName}\tRed Score: {redScore}\tBlue Score: {blueScore}", evt, matchName, redScore, blueScore);
 
-        Best potentialBest = redScore > blueScore ? new Best(MetricCategory.Total, evt, matchName, "Red", redScore) : new Best(MetricCategory.Total, evt, matchName, "Blue", blueScore);
+        Best potentialBest = redScore > blueScore ? new Best(MetricCategory.Total, evt, matchName, "Red", redScore.Value) : new Best(MetricCategory.Total, evt, matchName, "Blue", blueScore.Value);
         if (potentialBest.Points > -_bestTotal!.Points)
         {
             _bestTotal = _bestTotal with
@@ -190,8 +195,8 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
 
         var blueFoulPoints = (match.GetScoreBreakdownFor("blue")?["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
         var redFoulPoints = (match.GetScoreBreakdownFor("red")?["foulPoints"]!.GetValue<int>()).GetValueOrDefault(0);
-        var adjustedBlueScore = blueScore - blueFoulPoints;
-        var adjustedRedScore = redScore - redFoulPoints;
+        var adjustedBlueScore = blueScore.Value - blueFoulPoints;
+        var adjustedRedScore = redScore.Value - redFoulPoints;
         if (adjustedRedScore > adjustedBlueScore && adjustedRedScore > _bestPureTotal!.Points)
         {
             _bestPureTotal = _bestPureTotal with
@@ -222,7 +227,7 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
         System.Text.Json.Nodes.JsonNode? redBreakdown = match.GetScoreBreakdownFor("red");
         var redEndgameTotalStagePoints = redBreakdown?["endGameTotalStagePoints"]?.GetValue<int>();
 
-        var matchName = match.Key;
+        var matchName = match.Key!;
 
         _log.LogDebug("{event}/{matchName}\tRed Stage: {redStage}\tBlue Stage: {blueStage}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 
@@ -242,7 +247,7 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
     private void TrackBestAutoScore(Event evt, Match match)
     {
         using IDisposable? log = _log.BeginScope(nameof(TrackBestAutoScore));
-        var matchKey = match.Key;
+        var matchKey = match.Key!;
         if (_matchesToExclude["auto"].Contains(matchKey, StringComparer.OrdinalIgnoreCase))
         {
             _log.LogWarning("Skipped {match} due to exclusion", matchKey);
@@ -254,7 +259,7 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
         System.Text.Json.Nodes.JsonNode? redBreakdown = match.GetScoreBreakdownFor("red");
         var redEndgameTotalStagePoints = redBreakdown?["autoPoints"]?.GetValue<int>();
 
-        var matchName = match.Key;
+        var matchName = match.Key!;
 
         _log.LogDebug("{event}/{matchName}\tRed Auto: {redAuto}\tBlue Auto: {blueAuto}", evt, matchName, !redEndgameTotalStagePoints.HasValue ? "NULL" : redEndgameTotalStagePoints.Value, !blueEndgameTotalStagePoints.HasValue ? "NULL" : blueEndgameTotalStagePoints.Value);
 

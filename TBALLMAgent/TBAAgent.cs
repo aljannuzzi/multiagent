@@ -82,7 +82,7 @@ public class TBAAgent(Configuration configuration)
     public async Task<JsonDocument> GetMatchDataForSeasonAsync(int year, string jmesPath)
     {
         List<string> events = await _eventApi.GetEventsByYearKeysAsync(year).ConfigureAwait(false);
-        IEnumerable<Match> matches = events.SelectMany(e => _eventApi.GetEventMatches(e));
+        IEnumerable<Match> matches = events.SelectMany(e => _eventApi.GetEventMatches(e) ?? []);
 
         JToken result = await _jmesPath.TransformAsync(JToken.FromObject(new { matches }), jmesPath).ConfigureAwait(false);
         return JsonDocument.Parse(result.ToString());
