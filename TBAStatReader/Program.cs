@@ -19,8 +19,10 @@ internal class Program
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
         b.Configuration.AddUserSecrets<Program>();
         b.Services.AddHostedService<Worker>()
-            .AddHttpClient()
-            .AddSingleton(sp => new TBAAPI.V3Client.Client.Configuration(new Dictionary<string, string>(), new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } }, new Dictionary<string, string>()) { DateTimeFormat = "yyyy-MM-dd" })
+            .AddSingleton(sp => new TBAAPI.V3Client.Client.Configuration(new Dictionary<string, string>(),
+                new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } },
+                new Dictionary<string, string>())
+            { DateTimeFormat = "yyyy-MM-dd" })
             .AddSingleton(_ => new TBAAPI.V3Client.Client.ApiClient("https://www.thebluealliance.com/api/v3"))
             .AddLogging(lb =>
                 lb.AddSimpleConsole(o =>
@@ -30,6 +32,27 @@ internal class Program
                     o.IncludeScopes = true;
                 }));
 
+        b.Services
+            .AddTransient<DebugHandler>()
+            .AddHttpClient("AzureOpenAi")
+            .AddHttpMessageHandler<DebugHandler>();
+
         await b.Build().RunAsync(cts.Token);
+    }
+
+    class DebugHandler(ILoggerFactory loggerFactory) : DelegatingHandler
+    {
+        private readonly ILogger _log = loggerFactory.CreateLogger<DebugHandler>();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (_log.IsEnabled(LogLevel.Trace) && request.Content is not null)
+            {
+                var body = await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                _log.LogTrace("{requestBody}", body);
+            }
+
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

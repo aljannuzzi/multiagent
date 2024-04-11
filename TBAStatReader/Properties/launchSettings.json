@@ -6,7 +6,7 @@
     },
     "Chat Mode": {
       "commandName": "Project",
-      "commandLineArgs": "--chatMode=true --AzureOpenDeployment=gpt-4-32k"
+      "commandLineArgs": "--chatMode=true --AzureOpenDeployment=gpt-35-turbo"
     }
   }
 }
