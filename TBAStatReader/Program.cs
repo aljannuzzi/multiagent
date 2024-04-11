@@ -33,8 +33,9 @@ internal class Program
                 }));
 
         b.Services
-            .AddTransient<DebugHandler>()
-            .AddHttpClient("AzureOpenAi")
+            .AddTransient<DebugHandler>();
+
+        b.Services.AddHttpClient("Orchestrator", (sp, c) => c.BaseAddress = new(sp.GetRequiredService<IConfiguration>()["OrchestratorEndpoint"] ?? throw new ArgumentNullException("Endpoint missing for 'Orchestrator' configuration options")))
             .AddHttpMessageHandler<DebugHandler>();
 
         await b.Build().RunAsync(cts.Token);

@@ -5,28 +5,30 @@ VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TBAStatReader", "TBAStatReader\TBAStatReader.csproj", "{40B71066-DF5C-43AA-A54B-F34FABB0FDBD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TBAAPI.V3Client", "tba-client\src\TBAAPI.V3Client\TBAAPI.V3Client.csproj", "{E9C6E09C-C904-4619-ABCC-F1696C815CFC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Models", "tba-client\src\TBAAPI.V3Client\Models.csproj", "{E9C6E09C-C904-4619-ABCC-F1696C815CFC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{58E5DCD0-ECDD-4A0A-93EB-68DCD02AAA71}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TBALLMAgent", "TBALLMAgent\TBALLMAgent.csproj", "{8CDD4A46-F6E4-4419-9840-7423D14F5A23}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orchestrator", "Agents\Orchestrator\Orchestrator.csproj", "{F90916E9-24E8-4259-824F-B2F7D6CDA925}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orchestrator", "Agents\Orchestrator\Orchestrator.csproj", "{F90916E9-24E8-4259-824F-B2F7D6CDA925}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Agents", "Agents", "{A1B90F1A-BB18-4826-A460-257820CCDC70}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "District", "Agents\District\District.csproj", "{71B3EBF2-20C3-44F4-AE82-F221B65D2655}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "District", "Agents\District\District.csproj", "{71B3EBF2-20C3-44F4-AE82-F221B65D2655}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Events", "Agents\Events\Events.csproj", "{31D90780-6A81-4463-B267-48ABDB4501EB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Events", "Agents\Events\Events.csproj", "{31D90780-6A81-4463-B267-48ABDB4501EB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Teams", "Agents\Teams\Teams.csproj", "{7E72D30A-D48A-4F30-B442-43EE2B8DE165}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teams", "Agents\Teams\Teams.csproj", "{7E72D30A-D48A-4F30-B442-43EE2B8DE165}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Matches", "Agents\Matches\Matches.csproj", "{0E50B84F-5632-4A91-9C01-A9ECEA263A5A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Matches", "Agents\Matches\Matches.csproj", "{0E50B84F-5632-4A91-9C01-A9ECEA263A5A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Assistants", "Assistants\Assistants.csproj", "{851CF888-1F1A-4D54-BD43-B7DF29993667}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Assistants", "Assistants\Assistants.csproj", "{851CF888-1F1A-4D54-BD43-B7DF29993667}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiClient", "ApiClient\ApiClient.csproj", "{7233C7E8-697A-4A44-9E31-3F698D073264}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{1686A7C4-78A5-45E3-BC09-C4AF87FA735F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,10 +44,6 @@ Global
 		{E9C6E09C-C904-4619-ABCC-F1696C815CFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E9C6E09C-C904-4619-ABCC-F1696C815CFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E9C6E09C-C904-4619-ABCC-F1696C815CFC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8CDD4A46-F6E4-4419-9840-7423D14F5A23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8CDD4A46-F6E4-4419-9840-7423D14F5A23}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8CDD4A46-F6E4-4419-9840-7423D14F5A23}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8CDD4A46-F6E4-4419-9840-7423D14F5A23}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F90916E9-24E8-4259-824F-B2F7D6CDA925}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F90916E9-24E8-4259-824F-B2F7D6CDA925}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F90916E9-24E8-4259-824F-B2F7D6CDA925}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -70,6 +68,14 @@ Global
 		{851CF888-1F1A-4D54-BD43-B7DF29993667}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{851CF888-1F1A-4D54-BD43-B7DF29993667}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{851CF888-1F1A-4D54-BD43-B7DF29993667}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7233C7E8-697A-4A44-9E31-3F698D073264}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7233C7E8-697A-4A44-9E31-3F698D073264}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7233C7E8-697A-4A44-9E31-3F698D073264}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7233C7E8-697A-4A44-9E31-3F698D073264}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1686A7C4-78A5-45E3-BC09-C4AF87FA735F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1686A7C4-78A5-45E3-BC09-C4AF87FA735F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1686A7C4-78A5-45E3-BC09-C4AF87FA735F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1686A7C4-78A5-45E3-BC09-C4AF87FA735F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

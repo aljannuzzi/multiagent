@@ -14,9 +14,11 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4" />
     <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.21.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="1.1.0" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.7.1" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\tba-client\src\TBAAPI.V3Client\TBAAPI.V3Client.csproj" />
+    <ProjectReference Include="..\..\ApiClient\ApiClient.csproj" />
+    <ProjectReference Include="..\..\tba-client\src\TBAAPI.V3Client\Models.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">

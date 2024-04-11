@@ -2,8 +2,14 @@
   "profiles": {
     "District": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7255",
-      "launchBrowser": false
+      "commandLineArgs": "--port 7255"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "DockerfileRunArguments": "--init",
+      "httpPort": 37255,
+      "useSSL": false
     }
   }
 }

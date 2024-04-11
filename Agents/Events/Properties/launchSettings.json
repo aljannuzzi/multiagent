@@ -2,13 +2,13 @@
   "profiles": {
     "Events": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7094"
+      "commandLineArgs": "--port 7256"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
       "DockerfileRunArguments": "--init",
-      "httpPort": 33789,
+      "httpPort": 37256,
       "useSSL": false
     }
   }

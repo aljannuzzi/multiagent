@@ -2,8 +2,14 @@
   "profiles": {
     "Orchestrator": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7101",
-      "launchBrowser": false
+      "commandLineArgs": "--port 7250"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "DockerfileRunArguments": "--init",
+      "httpPort": 37250,
+      "useSSL": false
     }
   }
 }

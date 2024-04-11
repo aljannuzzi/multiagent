@@ -89,15 +89,15 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
         using IDisposable? s = _logger.BeginScope(nameof(FilterEventsAsync));
         jmesPath = SanitizeJMESPath(jmesPath).Replace("'events'", "events");
         _logger.LogDebug("JMESPath: {jmesPath}", jmesPath);
-        var response = await _eventApi.GetEventsByYearAsyncWithHttpInfoAsync(year).ConfigureAwait(false);
-        var events = response.Data ?? throw new ArgumentNullException();
+        ApiResponse<List<Event>> response = await _eventApi.GetEventsByYearAsyncWithHttpInfoAsync(year).ConfigureAwait(false);
+        List<Event> events = response.Data ?? throw new ArgumentNullException();
 
         if (events.Count is 0)
         {
             return EmptyDoc;
         }
 
-        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { events }));
+        var obj = JToken.Parse(JsonSerializer.Serialize(new { events }));
         try
         {
             JToken result = await _jmesPath.TransformAsync(obj, jmesPath).ConfigureAwait(false);
@@ -170,7 +170,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
             return EmptyDoc;
         }
 
-        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
+        var obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
         try
         {
             JmesPathArgument result = jmesExpression.Transform(new(obj));
@@ -214,7 +214,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
             return EmptyDoc;
         }
 
-        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
+        var obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
         try
         {
             JToken result = await _jmesPath.TransformAsync(obj, jmesPath).ConfigureAwait(false);
@@ -277,7 +277,6 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
         return await _teamApi.GetTeamAsync(teamKey).ConfigureAwait(false);
     }
 
-
     /// <summary>
     /// Finds teams asynchronously using a JMESPath expression.
     /// </summary>
@@ -321,18 +320,18 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
             batch.Add(t);
             if (batch.Count is 10)
             {
-                await processBatch(expression, result, batch).ConfigureAwait(false);
+                await processBatchAsync(expression, result, batch).ConfigureAwait(false);
             }
         }
 
         if (batch.Count > 0)
         {
-            await processBatch(expression, result, batch).ConfigureAwait(false);
+            await processBatchAsync(expression, result, batch).ConfigureAwait(false);
         }
 
         return [.. result];
 
-        static async Task processBatch(JmesPathExpression expression, List<Team> result, List<Team> batch)
+        static async Task processBatchAsync(JmesPathExpression expression, List<Team> result, List<Team> batch)
         {
             JmesPathArgument transformation = await expression.TransformAsync(JObject.Parse(JsonSerializer.Serialize(new { teams = batch }))).ConfigureAwait(false);
 
