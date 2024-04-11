@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Orchestrator": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7101",
+      "launchBrowser": false
+    }
+  }
+}

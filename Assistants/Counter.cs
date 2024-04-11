@@ -8,7 +8,7 @@ using Json.More;
 
 using Microsoft.SemanticKernel;
 
-public class Helpers
+public class Counter
 {
     [KernelFunction, Description("Counts the number of items in a JSON array")]
     public int CountItemsInJsonArray(string jsonArray)

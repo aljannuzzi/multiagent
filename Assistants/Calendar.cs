@@ -1,4 +1,4 @@
-﻿namespace TBALLMAgent;
+﻿namespace Assistants;
 
 using System.ComponentModel;
 

@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "Matches": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7172"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "DockerfileRunArguments": "--init",
+      "httpPort": 32267,
+      "useSSL": false
+    }
+  }
+}

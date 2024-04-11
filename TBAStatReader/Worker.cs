@@ -16,91 +16,22 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
-using TBAAPI.V3Client.Api;
 using TBAAPI.V3Client.Client;
 using TBAAPI.V3Client.Model;
 
 using TBALLMAgent;
 
-internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactory, ApiClient client, Configuration clientConfig, ILoggerFactory loggerFactory) : IHostedService
+internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactory, Configuration clientConfig, ILoggerFactory loggerFactory) : IHostedService
 {
     private readonly string _apiKey = config["TBA_API_KEY"]!;
-    private readonly bool _chatMode = config["chatMode"]?.Equals("true", StringComparison.OrdinalIgnoreCase) ?? false;
-    private readonly ApiClient _client = client;
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
-    private readonly ImmutableDictionary<string, ImmutableArray<string>> _matchesToExclude = (config.GetSection("excludeMatches").GetChildren().Select(i => (i["metric"]!, i["matchKey"]!)) ?? []).GroupBy(i => i.Item1, i => i.Item2, StringComparer.OrdinalIgnoreCase).ToImmutableDictionary(i => i.Key, i => i.ToImmutableArray(), StringComparer.OrdinalIgnoreCase);
-    private readonly int _maxNumEvents = int.Parse(config["maxEvents"] ?? "0");
-    private readonly int _targetYear = int.Parse(config["year"] ?? DateTime.Now.Year.ToString());
-
-    private Best _bestStage = new(MetricCategory.Staging, default, string.Empty, string.Empty, 0);
-    private Best _bestAllianceAuto = new(MetricCategory.Auto, default, string.Empty, string.Empty, 0);
-    private Best _bestTotal = new(MetricCategory.Total, default, string.Empty, string.Empty, 0);
-    private Best _bestPureTotal = new(MetricCategory.PureTotal, default, string.Empty, string.Empty, 0);
 
     private readonly CircularCharArray _spinner = CircularCharArray.ProgressSpinner;
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2254:Template should be a static expression", Justification = "Don't have the code fixes to make this better at this time")]
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         _log.LogDebug("API key: {apiKey}", _apiKey);
 
-        if (_chatMode)
-        {
-            await ExecuteChatModeAsync(cancellationToken);
-            return;
-        }
-
-        var events = new EventApi(clientConfig);
-        List<Event> yearEvents = await events.GetEventsByYearAsync(_targetYear);
-        ArgumentNullException.ThrowIfNull(yearEvents);
-
-        var eventNum = 0;
-        var matches = new MatchApi(clientConfig);
-        foreach (Event yearEvent in yearEvents)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var eventName = yearEvent.Name;
-            List<Match> eventDetailData = await matches.GetEventMatchesAsync(yearEvent.Key!);
-            ArgumentNullException.ThrowIfNull(eventDetailData);
-
-            if (eventDetailData.Count is not 0)
-            {
-                ++eventNum;
-                if (_maxNumEvents > 0 && eventNum > _maxNumEvents)
-                {
-                    _log.LogInformation("Reached max number of events to process");
-                    break;
-                }
-
-                foreach (Match? match in eventDetailData)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    _log.LogDebug("{match}", match);
-
-                    TrackBestStagingScore(yearEvent, match);
-                    TrackBestAutoScore(yearEvent, match);
-                    TrackBestScore(yearEvent, match);
-
-                    Console.CursorLeft = 0;
-                    Console.Write(_spinner.Next());
-                }
-
-                Console.CursorLeft = 0;
-                Console.WriteLine(' ');
-                _log.LogInformation($"{{eventName}} processed ({{matchCount}} {(eventDetailData.Count is 1 ? "match" : "matches")})", eventName, eventDetailData.Count);
-            }
-        }
-
-        _log.LogInformation("{bestTotal}", _bestTotal);
-        _log.LogInformation("{bestPureTotal}", _bestPureTotal);
-        _log.LogInformation("{bestAllianceAuto}", _bestAllianceAuto);
-        _log.LogInformation("{bestStage}", _bestStage);
-    }
-
-    private async Task ExecuteChatModeAsync(CancellationToken cancellationToken)
-    {
         Console.WriteLine("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
         IKernelBuilder builder = Kernel.CreateBuilder();
         builder.Services.AddSingleton(loggerFactory);
