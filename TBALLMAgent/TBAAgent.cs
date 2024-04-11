@@ -40,7 +40,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
     /// <returns>A task representing the asynchronous operation that returns a list of events.</returns>
     [KernelFunction, Description("Retrieves a list of events for a specific season. Events do not contain scoring data.")]
     [return: Description("A list of events for the specified season with limited detail.")]
-    public async Task<IReadOnlyList<EventSimple>> GetEventsForSeasonAsync(int year) => await _eventApi.GetEventsByYearSimpleAsync(year);
+    public async Task<IReadOnlyList<EventSimple>> GetEventsForSeasonAsync(int year) => await _eventApi.GetEventsByYearSimpleAsync(year).ConfigureAwait(false);
 
     /// <summary>
     /// Retrieves a list of events that started or ended within the given dates.
@@ -54,7 +54,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
     {
         using IDisposable? s = _logger.BeginScope(nameof(GetEventsByDateRangeAsync));
         _logger.LogDebug("Dates: {startDate} - {endDate}", startDate.ToShortDateString(), endDate.ToShortDateString());
-        List<EventSimple> seasonEvents = await _eventApi.GetEventsByYearSimpleAsync(startDate.Year);
+        List<EventSimple> seasonEvents = await _eventApi.GetEventsByYearSimpleAsync(startDate.Year).ConfigureAwait(false);
 
         return seasonEvents.FindAll(e => (e.StartDate >= startDate && e.StartDate <= endDate) || (e.EndDate >= startDate && e.EndDate <= endDate));
     }
@@ -89,14 +89,15 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
         using IDisposable? s = _logger.BeginScope(nameof(FilterEventsAsync));
         jmesPath = SanitizeJMESPath(jmesPath).Replace("'events'", "events");
         _logger.LogDebug("JMESPath: {jmesPath}", jmesPath);
-        List<Event> events = await _eventApi.GetEventsByYearAsync(year).ConfigureAwait(false);
+        var response = await _eventApi.GetEventsByYearAsyncWithHttpInfoAsync(year).ConfigureAwait(false);
+        var events = response.Data ?? throw new ArgumentNullException();
 
         if (events.Count is 0)
         {
             return EmptyDoc;
         }
 
-        var obj = JToken.Parse(JsonSerializer.Serialize(new { events }));
+        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { events }));
         try
         {
             JToken result = await _jmesPath.TransformAsync(obj, jmesPath).ConfigureAwait(false);
@@ -125,7 +126,6 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
     [KernelFunction, Description("Retrieves the details of a match, including scores, winning alliances, etc. asynchronously for a specified match key.")]
     [return: Description("The details of the specified match.")]
     public Task<Match> GetMatchDetailAsync(string matchKey) => _matchApi.GetMatchAsync(matchKey);
-
 
     /// <summary>
     /// Filters matches found for a specified year/season using a JMESPath transformation on the match collection.
@@ -170,7 +170,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
             return EmptyDoc;
         }
 
-        var obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
+        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
         try
         {
             JmesPathArgument result = jmesExpression.Transform(new(obj));
@@ -214,7 +214,7 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
             return EmptyDoc;
         }
 
-        var obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
+        JToken obj = JToken.Parse(JsonSerializer.Serialize(new { matches }));
         try
         {
             JToken result = await _jmesPath.TransformAsync(obj, jmesPath).ConfigureAwait(false);
@@ -236,29 +236,30 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
     /// </summary>
     /// <param name="search">The name of the team or school to search for</param>
     /// <returns>The team key if found, otherwise null.</returns>
-    [Description("Looks up the team key for a given team name.")]
-    [return: Description("The key for the specified team.")]
-    public async Task<string> GetTeamKeyAsync([Description("The name of the team or school to search for")] string search)
+    //[KernelFunction, Description("Looks up the team key for a given team name.")]
+    [return: Description("The team key if found, otherwise null.")]
+    public async Task<string?> GetTeamKeyAsync([Description("The name of the team or school to search for")] string search)
     {
         using IDisposable? s = _logger.BeginScope(nameof(GetTeamKeyAsync));
         _logger.LogDebug("Team Name: {teamName}", search);
 
         for (var i = 0; ; i++)
         {
-            List<Team> teams = await _teamApi.GetTeamsAsync(i++).ConfigureAwait(false);
-            if (teams.Count is 0)
+            ApiResponse<List<Team>> teamResponse = await _teamApi.GetTeamsAsyncWithHttpInfoAsync(i).ConfigureAwait(false);
+            List<Team> teams = teamResponse.Data;
+            if (teams?.Count is null or 0)
             {
                 break;
             }
 
-            Team? targetTeam = teams.FirstOrDefault(t => t.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) is true || t.SchoolName?.Contains(search, StringComparison.OrdinalIgnoreCase) is true);
+            Team? targetTeam = teams.FirstOrDefault(t => t.Nickname?.Contains(search, StringComparison.OrdinalIgnoreCase) is true || t.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) is true || t.SchoolName?.Contains(search, StringComparison.OrdinalIgnoreCase) is true);
             if (targetTeam is not null)
             {
                 return targetTeam.Key!;
             }
         }
 
-        throw new KeyNotFoundException($"No team was found matching {search}");
+        return null;
     }
 
     /// <summary>
@@ -266,13 +267,104 @@ public class TBAAgent(Configuration configuration, ILoggerFactory loggerFactory)
     /// </summary>
     /// <param name="teamKey">The key of the team.</param>
     /// <returns>The team name if found, otherwise null.</returns>
-    [Description("Looks up the team name for a given team key.")]
+    //[KernelFunction, Description("Looks up the team name for a given team key.")]
     [return: Description("The name of the specified team.")]
-    public async Task<string> GetTeamNameAsync([Description("The key of the team.")] string teamKey)
+    public async Task<Team> GetTeamDetailAsync([Description("The key of the team.")] string teamKey)
     {
-        using IDisposable? s = _logger.BeginScope(nameof(GetTeamNameAsync));
+        using IDisposable? s = _logger.BeginScope(nameof(GetTeamDetailAsync));
         _logger.LogDebug("Team Key: {teamKey}", teamKey);
 
-        return (await _teamApi.GetTeamAsync(teamKey).ConfigureAwait(false))?.Name!;
+        return await _teamApi.GetTeamAsync(teamKey).ConfigureAwait(false);
+    }
+
+
+    /// <summary>
+    /// Finds teams asynchronously using a JMESPath expression.
+    /// </summary>
+    /// <param name="jmesPath">The JMESPath expression used to filter and transform the teams.</param>
+    /// <returns>An asynchronous enumerable of teams that match the JMESPath expression.</returns>
+    [KernelFunction, Description("Finds the number of teams within a `teams` array that match a JMESPath expression.")]
+    [return: Description("The number of teams matching the expression.")]
+    public async Task<int> NumberOfTeamsMatchingAsync([Description("The JMESPath expression used to filter the list of teams to a subset of teams")] string jmesPath) => (await FilterTeamsAsync(jmesPath)).Length;
+
+    /// <summary>
+    /// Finds teams asynchronously using a JMESPath expression.
+    /// </summary>
+    /// <param name="jmesPath">The JMESPath expression used to filter and transform the teams.</param>
+    /// <returns>An asynchronous enumerable of teams that match the JMESPath expression.</returns>
+    [KernelFunction, Description("Finds teams within a `teams` array asynchronously using a JMESPath expression.")]
+    [return: Description("An array of teams that match the JMESPath expression.")]
+    public async Task<Team[]> FilterTeamsAsync([Description("The JMESPath expression used to filter the list of teams to a subset of teams. Does not support JMESPath functions like length(), etc.")] string jmesPath)
+    {
+        using IDisposable? s = _logger.BeginScope(nameof(GetTeamDetailAsync));
+        jmesPath = SanitizeJMESPath(jmesPath);
+        if (!jmesPath.StartsWith("teams"))
+        {
+            jmesPath = "teams" + jmesPath;
+        }
+
+        _logger.LogDebug("JMESPath: {jmesPath}", jmesPath);
+
+        JmesPathExpression expression;
+        try
+        {
+            expression = _jmesPath.Parse(jmesPath);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException($"JMESPath did not give proper results. Fix the expression and try again. {ex.Message}");
+        }
+
+        List<Team> result = [], batch = [];
+        await foreach (Team t in GetAllTeamsAsync())
+        {
+            batch.Add(t);
+            if (batch.Count is 10)
+            {
+                await processBatch(expression, result, batch).ConfigureAwait(false);
+            }
+        }
+
+        if (batch.Count > 0)
+        {
+            await processBatch(expression, result, batch).ConfigureAwait(false);
+        }
+
+        return [.. result];
+
+        static async Task processBatch(JmesPathExpression expression, List<Team> result, List<Team> batch)
+        {
+            JmesPathArgument transformation = await expression.TransformAsync(JObject.Parse(JsonSerializer.Serialize(new { teams = batch }))).ConfigureAwait(false);
+
+            try
+            {
+                Team[] filteredTeams = JsonDocument.Parse(transformation.AsJToken().ToString()).Deserialize<Team[]>()!;
+                result.AddRange(filteredTeams);
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException("The JMESPath didn't yield a collection of Team objects. Fix the expression and try again.");
+            }
+
+            batch.Clear();
+        }
+    }
+
+    private async IAsyncEnumerable<Team> GetAllTeamsAsync()
+    {
+        for (var i = 0; ; i++)
+        {
+            ApiResponse<List<Team>> teamResponse = await _teamApi.GetTeamsAsyncWithHttpInfoAsync(i).ConfigureAwait(false);
+            List<Team> teams = teamResponse.Data;
+            if (teams?.Count is null or 0)
+            {
+                break;
+            }
+
+            foreach (Team t in teams)
+            {
+                yield return t;
+            }
+        }
     }
 }

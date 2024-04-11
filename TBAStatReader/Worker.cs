@@ -105,8 +105,10 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
         IKernelBuilder builder = Kernel.CreateBuilder();
         builder.Services.AddSingleton(loggerFactory);
         builder.Plugins
+            //.AddFromObject(new TeamApi(clientConfig))
             .AddFromObject(new TBAAgent(clientConfig, loggerFactory))
-            .AddFromObject(new Calendar());
+            .AddFromType<Calendar>()
+            .AddFromType<Helpers>();
 
         if (config["AzureOpenAIKey"] is not null)
         {
@@ -130,7 +132,7 @@ internal class Worker(IConfiguration config, IHttpClientFactory httpClientFactor
         var baseSystemPrompt = $@"You are an information assistant for users asking questions about the FIRST Robotics competition.
 In these competitions, two ""alliances"" - red & blue - each consisting of 3 ""teams"" compete against one another to score points based on the rules defined for the season's game. A given ""event"" consists of many ""matches"" (individual scoring rounds between alliances).
 Many events are held around the world at any given time, with a season consisting of 6 weeks of competition followed by the World Championships and some ""off-season"" events following.
-You have been given access to the data catalog of FIRST via API calls, use these to your advantage to answer questions about past and current events and matches in the competition.
+You have been given access to the data catalog of FIRST via API calls, use these to your advantage to answer questions about past and current events, matches, and teams in the competition.
 If you aren't able to figure out how to answer the question, tell the user in a polite way and ask them for another question.
 
 Here some some samples of the results you can expect from the API:
@@ -224,6 +226,28 @@ Here some some samples of the results you can expect from the API:
   ]
 }}
 
+### SAMPLE TEAM DETAIL OBJECT
+{{
+  ""address"": null,
+  ""city"": ""Maple Valley"",
+  ""country"": ""USA"",
+  ""gmaps_place_id"": null,
+  ""gmaps_url"": null,
+  ""key"": ""frc2046"",
+  ""lat"": null,
+  ""lng"": null,
+  ""location_name"": null,
+  ""motto"": null,
+  ""name"": ""The Boeing Company/Washington State OSPI/Tahoma School District/The Truck Shop/THiNC/Ratheon/Gene Haas Foundation/1-800-Got-Junk/West Coast Products&Tahoma High School"",
+  ""nickname"": ""Bear Metal"",
+  ""postal_code"": ""98038"",
+  ""rookie_year"": 2007,
+  ""school_name"": ""Tahoma High School"",
+  ""state_prov"": ""Washington"",
+  ""team_number"": 2046,
+  ""website"": ""http://tahomarobotics.org/""
+}}
+
 When constructing a JMESPath for the JSON structures above, act as follows:
 1. Use exact references to the item(s) you need from within the structure, (avoid wildcards, recursive search, etc.)
 2. Do not use JMESPath expression syntax ('&' operator)
@@ -264,7 +288,7 @@ This is the chat history so far in JSON format, use this as context into the con
                         await foreach (StreamingKernelContent token in kernel.InvokePromptStreamingAsync(question, new(settings), cancellationToken: cancellationToken))
                         {
                             var tokenString = token.ToString();
-                            if (string.IsNullOrEmpty(tokenString))
+                            if (string.IsNullOrEmpty(tokenString) && Console.CursorLeft is 0)
                             {
                                 Console.Write(progress.Next());
                                 Console.CursorLeft--;
