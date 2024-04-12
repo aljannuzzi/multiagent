@@ -1,10 +1,6 @@
-using System.Collections.Immutable;
-
 using Assistants;
 
 using Azure.Identity;
-
-using Common;
 
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
@@ -21,8 +17,10 @@ IHost host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
     .ConfigureServices(services =>
     {
-        services.AddApplicationInsightsTelemetryWorkerService();
-        services.ConfigureFunctionsApplicationInsights();
+        services.AddApplicationInsightsTelemetryWorkerService()
+            .ConfigureFunctionsApplicationInsights()
+            .AddTransient<DebugHttpHandler>()
+            .AddHttpClient("AzureOpenAi").AddHttpMessageHandler<DebugHttpHandler>();
 
         services.AddLogging(lb =>
         {
@@ -47,7 +45,6 @@ IHost host = new HostBuilder()
         {
             IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            ImmutableList<AgentDefinition> agents = sp.GetRequiredService<ImmutableList<AgentDefinition>>();
 
             IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
             kernelBuilder.Services.AddSingleton(loggerFactory);
@@ -75,19 +72,6 @@ IHost host = new HostBuilder()
 
             Kernel kernel = kernelBuilder.Build();
 
-            var expertFunctions = new List<KernelFunction>(agents.Count);
-            foreach (AgentDefinition a in agents)
-            {
-                expertFunctions.Add(kernel.CreateFunctionFromMethod(async (string prompt) =>
-                {
-                    HttpClient client = httpClientFactory.CreateClient(a.Name);
-                    client.BaseAddress = a.Endpoint;
-                    await client.PostAsync("api/threads", new StringContent(prompt));
-                }, a.Name, a.Description, [new("prompt") { IsRequired = true, ParameterType = typeof(string) }])
-                );
-            }
-
-            kernel.ImportPluginFromFunctions("Experts", expertFunctions);
             return kernel;
         });
     })
