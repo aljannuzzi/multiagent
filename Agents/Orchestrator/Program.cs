@@ -88,7 +88,8 @@ IHost host = new HostBuilder()
                 expertFunctions.Add(kernel.CreateFunctionFromMethod(async (string prompt) =>
                 {
                     HttpClient client = httpClientFactory.CreateClient(a.Name);
-                    await client.PostAsync("api/threads?resultOnly=true", new StringContent(prompt));
+                    var response = await client.PostAsync("api/threads", new StringContent(prompt));
+                    return await response.Content.ReadAsStringAsync();
                 }, a.Name, a.Description, [new("prompt") { IsRequired = true, ParameterType = typeof(string) }], new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })
                 );
             }
