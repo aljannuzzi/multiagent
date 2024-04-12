@@ -71,8 +71,4 @@
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\ZebraTeam.cs" Link="ZebraTeam.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Json\" />
-  </ItemGroup>
-
 </Project>
