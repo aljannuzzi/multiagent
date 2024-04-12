@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 using TBAStatReader;
 
-internal class Program
+internal partial class Program
 {
     private static async Task Main(string[] args)
     {
@@ -33,27 +33,11 @@ internal class Program
                 }));
 
         b.Services
-            .AddTransient<DebugHandler>();
+            .AddTransient<DebugHttpHandler>();
 
         b.Services.AddHttpClient("Orchestrator", (sp, c) => c.BaseAddress = new(sp.GetRequiredService<IConfiguration>()["OrchestratorEndpoint"] ?? throw new ArgumentNullException("Endpoint missing for 'Orchestrator' configuration options")))
-            .AddHttpMessageHandler<DebugHandler>();
+            .AddHttpMessageHandler<DebugHttpHandler>();
 
         await b.Build().RunAsync(cts.Token);
-    }
-
-    class DebugHandler(ILoggerFactory loggerFactory) : DelegatingHandler
-    {
-        private readonly ILogger _log = loggerFactory.CreateLogger<DebugHandler>();
-
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            if (_log.IsEnabled(LogLevel.Trace) && request.Content is not null)
-            {
-                var body = await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                _log.LogTrace("{requestBody}", body);
-            }
-
-            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        }
     }
 }

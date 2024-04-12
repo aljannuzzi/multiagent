@@ -1,17 +1,27 @@
 namespace Events;
+
+using System.Threading.Tasks;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
 
-public class Threads(ILogger<Threads> logger)
+public class Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Threads> Log)
 {
-    private readonly ILogger<Threads> _logger = logger;
-
     [Function("threads")]
-    public IActionResult Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req)
+    public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req)
     {
-        _logger.LogInformation("Events API called: {requestBody}", new StreamReader(req.Body).ReadToEnd());
-        return new OkObjectResult("Welcome to Azure Functions!");
+        using var sr = new StreamReader(req.Body);
+        var prompt = await sr.ReadToEndAsync();
+
+        Log.LogDebug("Handling prompt: {userPrompt}", prompt);
+
+        FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings));
+
+        Log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
+
+        return new OkObjectResult(promptResult.ToString());
     }
 }

@@ -1,14 +1,24 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS installer-env
+#See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-COPY . /src/dotnet-function-app
-RUN cd /src/dotnet-function-app && \
-mkdir -p /home/site/wwwroot && \
-dotnet publish *.csproj --output /home/site/wwwroot
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0 AS base
+WORKDIR /home/site/wwwroot
+EXPOSE 8080
 
-# To enable ssh & remote debugging on app service change the base image to the one below
-# FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated6.0-appservice
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated6.0
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["Agents/Orchestrator/Events.csproj", "Agents/Orchestrator/"]
+RUN dotnet restore "./Agents/Orchestrator/Orchestrator.csproj"
+COPY . .
+WORKDIR "/src/Agents/Orchestrator"
+RUN dotnet build "./Orchestrator.csproj" -c $BUILD_CONFIGURATION -o /app/build
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./Orchestrator.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /home/site/wwwroot
+COPY --from=publish /app/publish .
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
     AzureFunctionsJobHost__Logging__Console__IsEnabled=true
-
-COPY --from=installer-env ["/home/site/wwwroot", "/home/site/wwwroot"]
