@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
+using SignalRSupport;
+
 IHost host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
     .ConfigureServices(services =>
@@ -22,7 +24,11 @@ IHost host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
             .AddTransient<DebugHttpHandler>()
-            .AddHttpClient();
+            .AddHttpClient()
+            .AddSignalR()
+                .AddAzureSignalR(o => o.ConnectionString = Environment.GetEnvironmentVariable("SignalRConnectionString") ?? throw new ArgumentNullException("SignalRConnectionString is missing", default(Exception)));
+
+        services.AddSingleton<AgentHub>();
 
         services.AddLogging(lb =>
         {

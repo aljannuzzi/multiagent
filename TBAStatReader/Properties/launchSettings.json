@@ -2,11 +2,7 @@
   "profiles": {
     "TBAStatReader": {
       "commandName": "Project",
-      "commandLineArgs": "--debug=true --maxEvents=3"
-    },
-    "Chat Mode": {
-      "commandName": "Project",
-      "commandLineArgs": "--chatMode=true --AzureOpenDeployment=gpt-35-turbo"
+      "commandLineArgs": "--debug=true --maxEvents=3 --AzureOpenDeployment=gpt-35-turbo"
     }
   }
 }

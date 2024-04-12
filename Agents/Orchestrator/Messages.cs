@@ -1,21 +1,39 @@
 namespace Orchestrator;
 
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 
 using Common;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
+using SignalRSupport;
+
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Messages> Log)
+public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Messages> Log, AgentHub hub)
 {
+    private static readonly ConcurrentDictionary<Uri, HubConnection> SignalRClients = new();
+
     [Function("messages")]
     public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req, CancellationToken cancellationToken)
     {
+        if (req.Headers.TryGetValue("X-SignalR-ConnectionString", out var signalrEndpointValue))
+        {
+            if (Uri.TryCreate(signalrEndpointValue[0], UriKind.Absolute, out var signalRendpoint) && !string.IsNullOrWhiteSpace(signalrEndpointValue))
+            {
+                SignalRClients.GetOrAdd(signalRendpoint, _ => new HubConnectionBuilder().WithUrl(signalrEndpointValue!).Build());
+            }
+            else
+            {
+                throw new ArgumentException("Missing or empty SignalR Hub Endpoint value");
+            }
+        }
+
         using var sr = new StreamReader(req.Body);
         var prompt = await sr.ReadToEndAsync(cancellationToken);
 

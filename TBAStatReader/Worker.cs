@@ -4,10 +4,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) : IHostedService
+internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, HubConnection signalrHub) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
     private readonly HttpClient _client = httpClientFactory.CreateClient("Orchestrator");
@@ -16,33 +18,41 @@ internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory logge
     {
         Console.WriteLine("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
 
-        do
+        await signalrHub.StartAsync(cancellationToken);
+
+        signalrHub.On<string>("newMessage", (m) =>
         {
-            Console.Write("> ");
-            var question = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(question))
-            {
-                break;
-            }
+            Console.WriteLine("got it {0}", m);
+        });
 
-            CircularCharArray progress = CircularCharArray.ProgressSpinner;
+        await signalrHub.SendAsync("newMessage", "foo", cancellationToken: cancellationToken);
+        //do
+        //{
+        //    Console.Write("> ");
+        //    var question = Console.ReadLine();
+        //    if (string.IsNullOrWhiteSpace(question))
+        //    {
+        //        break;
+        //    }
 
-            Task<HttpResponseMessage> response = _client.PostAsync("api/messages", new StringContent(question), cancellationToken);
-            while (!response.IsCompleted)
-            {
-                Console.Write(progress.Next());
-                Console.CursorLeft--;
+        //    CircularCharArray progress = CircularCharArray.ProgressSpinner;
 
-                await Task.Delay(100);
-            }
+        //    Task<HttpResponseMessage> response = _client.PostAsync("api/messages", new StringContent(question), cancellationToken);
+        //    while (!response.IsCompleted)
+        //    {
+        //        Console.Write(progress.Next());
+        //        Console.CursorLeft--;
 
-            HttpResponseMessage responseResult = await response;
-            responseResult.EnsureSuccessStatusCode();
+        //        await Task.Delay(100);
+        //    }
 
-            var responseString = await responseResult.Content.ReadAsStringAsync(cancellationToken);
-            Console.WriteLine(responseString);
+        //    HttpResponseMessage responseResult = await response;
+        //    responseResult.EnsureSuccessStatusCode();
 
-        } while (!cancellationToken.IsCancellationRequested);
+        //    var responseString = await responseResult.Content.ReadAsStringAsync(cancellationToken);
+        //    Console.WriteLine(responseString);
+
+        //} while (!cancellationToken.IsCancellationRequested);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
