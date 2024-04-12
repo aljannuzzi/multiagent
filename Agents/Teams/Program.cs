@@ -26,15 +26,20 @@ IHost host = new HostBuilder()
 
         services.AddLogging(lb =>
         {
-            lb.AddFilter("Microsoft.SemanticKernel", LogLevel.Trace);
-            lb.AddSimpleConsole(o =>
-            {
-                o.SingleLine = true;
-                o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-                o.IncludeScopes = true;
-            });
-        })
-        .AddHttpLogging(o => o.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestBody);
+            lb.SetMinimumLevel(LogLevel.Trace)
+                .AddFilter("Microsoft.SemanticKernel", LogLevel.Trace)
+                .AddFilter("Microsoft.AspNetCore", LogLevel.None)
+                .AddFilter("Microsoft.Hosting", LogLevel.None)
+                .AddFilter("Microsoft.Extensions.Hosting", LogLevel.None)
+                .AddFilter("Microsoft.Extensions.Http", LogLevel.None)
+                .AddFilter("System.Net.Http.HttpClient.AzureOpenAi", LogLevel.None)
+                .AddSimpleConsole(o =>
+                {
+                    o.SingleLine = true;
+                    o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+                    o.IncludeScopes = true;
+                });
+        });
 
         services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
         {

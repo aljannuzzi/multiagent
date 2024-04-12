@@ -2,12 +2,15 @@ namespace Orchestrator;
 
 using System.Threading.Tasks;
 
+using Common;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
+#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Messages> Log)
 {
     [Function("messages")]
@@ -17,6 +20,8 @@ public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger
         var prompt = await sr.ReadToEndAsync(cancellationToken);
 
         Log.LogDebug("Handling prompt: {userPrompt}", prompt);
+
+        sk.FunctionFilters.Add(new DebugFunctionFilter());
 
         do
         {
@@ -50,4 +55,5 @@ public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger
             }
         } while (true);
     }
+#pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 }

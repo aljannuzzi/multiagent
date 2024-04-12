@@ -10,9 +10,16 @@ public class DebugHttpHandler(ILoggerFactory loggerFactory) : DelegatingHandler
         if (_log.IsEnabled(LogLevel.Trace) && request.Content is not null)
         {
             var body = await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            _log.LogTrace("{requestBody}", body);
+            _log.LogTrace("*** REQUEST {requestBody}", body);
         }
 
-        return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        HttpResponseMessage response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (_log.IsEnabled(LogLevel.Trace) && response.Content is not null)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            _log.LogTrace("*** RESPONSE {responseContent}", body);
+        }
+
+        return response;
     }
 }

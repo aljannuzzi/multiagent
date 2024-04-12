@@ -1,4 +1,7 @@
 namespace Matches;
+
+using Json.More;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
@@ -21,9 +24,10 @@ public class Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<
             {
                 FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings), cancellationToken: cancellationToken);
 
-                Log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
+                var funcResult = new OkObjectResult(promptResult.ToString()) { ContentTypes = ["application/json"] };
+                Log.LogDebug("Function Returning: {result}", funcResult.ToJsonDocument().RootElement);
 
-                return new OkObjectResult(promptResult.ToString());
+                return funcResult;
             }
             catch (HttpOperationException ex)
             {
