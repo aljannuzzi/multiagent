@@ -9,6 +9,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Extensions.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<None Remove="appsettings.json" />
 	</ItemGroup>
 
@@ -30,8 +34,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\ApiClient\ApiClient.csproj" />
-		<ProjectReference Include="..\tba-client\src\TBAAPI.V3Client\Models.csproj" />
+	  <ProjectReference Include="..\Common\Common.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -20,7 +20,7 @@ IHost host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
             .AddHttpClient()
-            .AddSingleton<ImmutableList<AgentDefinition>>(JsonSerializer.Deserialize<List<AgentDefinition>>(Environment.GetEnvironmentVariable("Agents") ?? throw new ArgumentNullException("Missing Agents environment variable"))?.ToImmutableList() ?? throw new ArgumentException("Unable to deserialize 'Agents' environment variable"));
+            .AddSingleton<ImmutableList<AgentDefinition>>(JsonSerializer.Deserialize<List<AgentDefinition>>(Environment.GetEnvironmentVariable("Agents") ?? throw new ArgumentNullException("Agents", "Missing Agents environment variable"))?.ToImmutableList() ?? throw new ArgumentException("Unable to deserialize 'Agents' environment variable"));
 
         services.AddLogging(lb =>
         {

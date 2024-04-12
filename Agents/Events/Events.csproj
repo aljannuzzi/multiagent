@@ -10,6 +10,9 @@
 		<DockerfileContext>..\..</DockerfileContext>
 	</PropertyGroup>
 	<ItemGroup>
+		<Compile Include="..\..\tba-client\src\TBAAPI.V3Client\Api\EventApi.cs" Link="EventApi.cs" />
+	</ItemGroup>
+	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="Azure.Identity" Version="1.11.0" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.20.1" />
@@ -24,7 +27,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\ApiClient\ApiClient.csproj" />
 		<ProjectReference Include="..\..\Assistants\Assistants.csproj" />
-		<ProjectReference Include="..\..\tba-client\src\TBAAPI.V3Client\Models.csproj" />
+		<ProjectReference Include="..\..\Models\Models.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="host.json">
