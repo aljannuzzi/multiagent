@@ -233,6 +233,9 @@ dotnet_naming_style.begins_with_i.capitalization = pascal_case
 # DGPT001: Member lacks XML documentation
 dotnet_diagnostic.DGPT001.severity = silent
 
+# CA2208: Pass actual parameter to ArgumentNullException paramName
+dotnet_diagnostic.CA2208.severity = silent
+
 [*.{cs,vb}]
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
 tab_width = 4
