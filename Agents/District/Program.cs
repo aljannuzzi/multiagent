@@ -2,6 +2,8 @@ using Assistants;
 
 using Azure.Identity;
 
+using Common;
+
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

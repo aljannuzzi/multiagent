@@ -27,14 +27,14 @@ internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory logge
 
             CircularCharArray progress = CircularCharArray.ProgressSpinner;
 
-            var response = _client.PostAsync("api/messages", new StringContent(question), cancellationToken);
+            Task<HttpResponseMessage> response = _client.PostAsync("api/messages", new StringContent(question), cancellationToken);
             while (!response.IsCompleted)
             {
                 Console.Write(progress.Next());
                 Console.CursorLeft--;
             }
 
-            var responseResult = await response;
+            HttpResponseMessage responseResult = await response;
             responseResult.EnsureSuccessStatusCode();
 
             var responseString = await responseResult.Content.ReadAsStringAsync(cancellationToken);

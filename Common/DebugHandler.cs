@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿namespace Common;
+using Microsoft.Extensions.Logging;
 
 public class DebugHttpHandler(ILoggerFactory loggerFactory) : DelegatingHandler
 {
