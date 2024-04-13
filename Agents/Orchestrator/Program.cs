@@ -14,8 +14,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
-using SignalRSupport;
-
 IHost host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
     .ConfigureServices(services =>
@@ -32,19 +30,12 @@ IHost host = new HostBuilder()
 
         services.AddLogging(lb =>
         {
-            lb.SetMinimumLevel(LogLevel.Trace)
-                .AddFilter("Microsoft.SemanticKernel", LogLevel.Trace)
-                .AddFilter("Microsoft.AspNetCore", LogLevel.None)
-                .AddFilter("Microsoft.Hosting", LogLevel.None)
-                .AddFilter("Microsoft.Extensions.Hosting", LogLevel.None)
-                .AddFilter("Microsoft.Extensions.Http", LogLevel.None)
-                .AddFilter("System.Net.Http.HttpClient.AzureOpenAi", LogLevel.None)
-                .AddSimpleConsole(o =>
-                {
-                    o.SingleLine = true;
-                    o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-                    o.IncludeScopes = true;
-                });
+            lb.AddSimpleConsole(o =>
+            {
+                o.SingleLine = true;
+                o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+                o.IncludeScopes = true;
+            });
         });
 
         services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
@@ -94,7 +85,7 @@ IHost host = new HostBuilder()
                 expertFunctions.Add(kernel.CreateFunctionFromMethod(async (string prompt) =>
                 {
                     HttpClient client = httpClientFactory.CreateClient(a.Name);
-                    var response = await client.PostAsync("api/threads", new StringContent(prompt));
+                    HttpResponseMessage response = await client.PostAsync("api/threads", new StringContent(prompt));
                     return await response.Content.ReadAsStringAsync();
                 }, a.Name, a.Description, [new("prompt") { IsRequired = true, ParameterType = typeof(string) }], new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })
                 );

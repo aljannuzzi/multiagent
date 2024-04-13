@@ -12,19 +12,17 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
-using SignalRSupport;
-
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Messages> Log, AgentHub hub)
+public class Messages(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Messages> Log)
 {
     private static readonly ConcurrentDictionary<Uri, HubConnection> SignalRClients = new();
 
     [Function("messages")]
     public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req, CancellationToken cancellationToken)
     {
-        if (req.Headers.TryGetValue("X-SignalR-ConnectionString", out var signalrEndpointValue))
+        if (req.Headers.TryGetValue("X-SignalR-ConnectionString", out Microsoft.Extensions.Primitives.StringValues signalrEndpointValue))
         {
-            if (Uri.TryCreate(signalrEndpointValue[0], UriKind.Absolute, out var signalRendpoint) && !string.IsNullOrWhiteSpace(signalrEndpointValue))
+            if (Uri.TryCreate(signalrEndpointValue[0], UriKind.Absolute, out Uri? signalRendpoint) && !string.IsNullOrWhiteSpace(signalrEndpointValue))
             {
                 SignalRClients.GetOrAdd(signalRendpoint, _ => new HubConnectionBuilder().WithUrl(signalrEndpointValue!).Build());
             }

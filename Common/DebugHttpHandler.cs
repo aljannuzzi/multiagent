@@ -1,9 +1,13 @@
 ﻿namespace Common;
 using Microsoft.Extensions.Logging;
 
-public class DebugHttpHandler(ILoggerFactory loggerFactory) : DelegatingHandler
+public class DebugHttpHandler : DelegatingHandler
 {
-    private readonly ILogger _log = loggerFactory.CreateLogger<DebugHttpHandler>();
+    private readonly ILogger _log;
+
+    public DebugHttpHandler(ILoggerFactory loggerFactory) : base() => _log = loggerFactory.CreateLogger<DebugHttpHandler>();
+
+    public DebugHttpHandler(ILoggerFactory loggerFactory, HttpMessageHandler innerHandler) : base(innerHandler) => _log = loggerFactory.CreateLogger<DebugHttpHandler>();
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {

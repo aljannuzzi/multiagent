@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	  <UserSecretsId>5631e549-948c-4903-be18-a06152c3600c</UserSecretsId>
+  </PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="appsettings.Development.json" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="JmesPath.Net" Version="1.0.330" />
+		<PackageReference Include="JsonCons.JmesPath" Version="1.0.0" />
+		<PackageReference Include="Microsoft.SemanticKernel" Version="1.7.1" />
+		<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Azure.Identity" Version="1.11.0" />
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.4" />
+		<PackageReference Include="Microsoft.Azure.SignalR.Management" Version="1.25.1" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.9.28">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Api\TeamApi.cs" Link="TeamApi.cs" />
+		<Compile Include="..\..\Teams\TeamApi_Extras.cs" Link="TeamApi_Extras.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="appsettings.Development.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\ApiClient\ApiClient.csproj" />
+	  <ProjectReference Include="..\..\..\Assistants\Assistants.csproj" />
+	  <ProjectReference Include="..\..\..\Models\Models.csproj" />
+	</ItemGroup>
+
+</Project>
