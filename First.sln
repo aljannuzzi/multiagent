@@ -34,7 +34,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orchestrator_SignalR", "Age
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Teams_SignalR", "Agents\SignalR\Teams_SignalR\Teams_SignalR.csproj", "{CE3F7B05-F913-4244-B9E3-FCAA68EFF93A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SignalRHub", "SignalRHub\SignalRHub.csproj", "{ABDBD43D-F99F-4187-9407-205B4E4EAB00}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SignalRHub", "SignalRHub\SignalRHub.csproj", "{ABDBD43D-F99F-4187-9407-205B4E4EAB00}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SignalRHub-New", "SignalRHub-New\SignalRHub-New.csproj", "{A5E6B32A-0A5A-46B0-A94C-DEB29BE739C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -94,6 +96,10 @@ Global
 		{ABDBD43D-F99F-4187-9407-205B4E4EAB00}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ABDBD43D-F99F-4187-9407-205B4E4EAB00}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ABDBD43D-F99F-4187-9407-205B4E4EAB00}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5E6B32A-0A5A-46B0-A94C-DEB29BE739C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5E6B32A-0A5A-46B0-A94C-DEB29BE739C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5E6B32A-0A5A-46B0-A94C-DEB29BE739C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5E6B32A-0A5A-46B0-A94C-DEB29BE739C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
