@@ -7,16 +7,14 @@ using System.Threading.Tasks;
 
 using Common;
 
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Azure.SignalR.Management;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
 using TBAAPI.V3Client.Client;
 
-internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection receiver, IServiceHubContext sender) : IHostedService
+internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection receiver) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger("TeamsExpert");
 
@@ -25,7 +23,7 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
         await receiver.StartAsync(cancellationToken);
         Console.WriteLine("Awaiting question from orchestrator...");
 
-        receiver.On<string, string>("question", async (prompt, conn) =>
+        receiver.On<string, string>("question", async (prompt) =>
         {
 
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
@@ -36,24 +34,20 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
             {
                 try
                 {
-                    string answer;
                     try
                     {
                         FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings), cancellationToken: cancellationToken);
 
                         _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 
-                        answer = promptResult.ToString();
+                        return promptResult.ToString();
                     }
                     catch (ApiException ex)
                     {
                         _log.LogError(ex, "Error handling prompt: {prompt}", prompt);
 
-                        answer = JsonSerializer.Serialize(ex.ErrorContent);
+                        return JsonSerializer.Serialize(ex.ErrorContent);
                     }
-
-                    await sender.Clients.User("orchestrator").SendAsync("question", answer, receiver.ConnectionId, cancellationToken);
-                    break;
                 }
                 catch (HttpOperationException ex)
                 {

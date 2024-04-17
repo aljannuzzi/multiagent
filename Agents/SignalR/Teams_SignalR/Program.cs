@@ -35,6 +35,7 @@ internal partial class Program
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
         b.Services.AddHostedService<Worker>()
+            .AddHttpClient()
             .AddTransient<DebugHttpHandler>()
             .AddLogging(lb =>
             {
@@ -47,103 +48,84 @@ internal partial class Program
             })
             .AddHttpLogging(o => o.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestBody | Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.ResponseBody);
 
+        ILoggerFactory loggerFactory = b.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+
         var signalRConnString = b.Configuration["SignalRConnectionString"];
-        if (!string.IsNullOrWhiteSpace(signalRConnString))
+        var options = new ServiceManagerOptions
         {
-            var options = new ServiceManagerOptions
-            {
-                ConnectionString = signalRConnString
-            };
+            ConnectionString = signalRConnString
+        };
 
-            ServiceManager signalRserviceManager = new ServiceManagerBuilder()
-                .WithOptions(o =>
+        ServiceManager signalRserviceManager = new ServiceManagerBuilder()
+            .WithOptions(o =>
+            {
+                o.ConnectionString = options.ConnectionString;
+                o.ServiceTransportType = ServiceTransportType.Persistent;
+            })
+            .WithLoggerFactory(loggerFactory)
+            .BuildServiceManager();
+        ServiceHubContext signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? Constants.SignalR.HubName, cts.Token);
+        Microsoft.AspNetCore.Http.Connections.NegotiationResponse userNegotiation = await signalRhub.NegotiateAsync(new NegotiationOptions
+        {
+            UserId = Constants.SignalR.Users.Experts.Teams,
+            EnableDetailedErrors = true
+        });
+
+        b.Services.AddSingleton(sp => new HubConnectionBuilder()
+                .WithUrl(userNegotiation.Url!, options =>
                 {
-                    o.ConnectionString = options.ConnectionString;
-                    o.ServiceTransportType = ServiceTransportType.Persistent;
+                    options.AccessTokenProvider = () => Task.FromResult(userNegotiation.AccessToken);
+                    options.HttpMessageHandlerFactory = f => new DebugHttpHandler(loggerFactory, f);
                 })
-                .WithLoggerFactory(b.Services.BuildServiceProvider().GetService<ILoggerFactory>())
-                .BuildServiceManager();
-            ServiceHubContext signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? "TBABot", cts.Token);
-            Microsoft.AspNetCore.Http.Connections.NegotiationResponse userNegotiation = await signalRhub.NegotiateAsync(new NegotiationOptions
-            {
-                UserId = "Teams",
-                EnableDetailedErrors = true
-            });
-
-            b.Services.AddSingleton<IServiceHubContext>(signalRhub);
-            b.Services.AddSingleton(sp =>
-            {
-                return new HubConnectionBuilder()
-                    .WithUrl(userNegotiation.Url!, options =>
-                    {
-                        options.AccessTokenProvider = () => Task.FromResult(userNegotiation.AccessToken);
-                        options.HttpMessageHandlerFactory = f => new DebugHttpHandler(sp.GetRequiredService<ILoggerFactory>(), f);
-                    })
-                    .ConfigureLogging(lb =>
-                    {
-                        lb.AddSimpleConsole(o =>
-                        {
-                            o.SingleLine = true;
-                            o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-                            o.IncludeScopes = true;
-                        });
-                    })
-                    .Build();
-            });
-        }
-
-        IServiceCollection services = b.Services;
-
-        services.AddLogging(lb =>
-        {
-            lb
-                .AddSimpleConsole(o =>
+                .ConfigureLogging(lb =>
                 {
-                    o.SingleLine = true;
-                    o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-                    o.IncludeScopes = true;
-                });
-        });
-
-        services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
-        {
-            ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
-            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-            User = Environment.MachineName
-        });
-
-        services.AddSingleton(sp =>
-        {
-            IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-
-            IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
-            kernelBuilder.Services.AddSingleton(loggerFactory);
-            kernelBuilder.Plugins.AddFromType<Calendar>();
-            kernelBuilder.Plugins.AddFromObject(new TeamApi(new Configuration(new Dictionary<string, string>(),
-                new Dictionary<string, string>() { { "X-TBA-Auth-Key", sp.GetRequiredService<IConfiguration>().GetValue<string>("TBA_API_KEY")! } },
-                new Dictionary<string, string>())));
-
-            if (b.Configuration["AzureOpenAIKey"] is not null)
+                    lb.AddConfiguration(sp.GetRequiredService<IConfiguration>().GetSection("Logging"));
+                    lb.AddSimpleConsole(o =>
+                    {
+                        o.SingleLine = true;
+                        o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+                        o.IncludeScopes = true;
+                    });
+                })
+                .Build())
+            .AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
             {
-                kernelBuilder.AddAzureOpenAIChatCompletion(
-                    b.Configuration["AzureOpenDeployment"]!,
-                    b.Configuration["AzureOpenAIEndpoint"]!,
-                    b.Configuration["AzureOpenAIKey"]!,
-                    httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
-            }
-            else
+                ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
+                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+                User = Environment.MachineName
+            })
+            .AddSingleton(sp =>
             {
-                kernelBuilder.AddAzureOpenAIChatCompletion(
-                    b.Configuration["AzureOpenDeployment"]!,
-                    b.Configuration["AzureOpenAIEndpoint"]!,
-                    new DefaultAzureCredential(),
-                    httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
-            }
+                IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
-            Kernel kernel = kernelBuilder.Build();
-            return kernel;
-        });
+                IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
+                kernelBuilder.Services.AddSingleton(loggerFactory);
+                kernelBuilder.Plugins.AddFromType<Calendar>();
+                kernelBuilder.Plugins.AddFromObject(new TeamApi(new Configuration(new Dictionary<string, string>(),
+                    new Dictionary<string, string>() { { "X-TBA-Auth-Key", b.Configuration["TBA_API_KEY"] ?? throw new ArgumentNullException("TBA_API_KEY", "Missing TBA_API_KEY environment variable") } },
+                    new Dictionary<string, string>())));
+
+                if (b.Configuration["AzureOpenAIKey"] is not null)
+                {
+                    kernelBuilder.AddAzureOpenAIChatCompletion(
+                        b.Configuration["AzureOpenDeployment"]!,
+                        b.Configuration["AzureOpenAIEndpoint"]!,
+                        b.Configuration["AzureOpenAIKey"]!,
+                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                }
+                else
+                {
+                    kernelBuilder.AddAzureOpenAIChatCompletion(
+                        b.Configuration["AzureOpenDeployment"]!,
+                        b.Configuration["AzureOpenAIEndpoint"]!,
+                        new DefaultAzureCredential(),
+                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                }
+
+                Kernel kernel = kernelBuilder.Build();
+                return kernel;
+            });
 
         await b.Build().RunAsync(cts.Token);
 

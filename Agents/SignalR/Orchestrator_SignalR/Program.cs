@@ -34,6 +34,7 @@ internal partial class Program
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
         b.Services.AddHostedService<Worker>()
+            .AddHttpClient()
             .AddTransient<DebugHttpHandler>()
             .AddLogging(lb =>
             {
@@ -48,6 +49,7 @@ internal partial class Program
 
         ILoggerFactory loggerFactory = b.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(b.Configuration["SignalRConnectionString"]);
         var signalRConnString = b.Configuration["SignalRConnectionString"];
         var options = new ServiceManagerOptions
         {
@@ -62,15 +64,14 @@ internal partial class Program
             })
             .WithLoggerFactory(loggerFactory)
             .BuildServiceManager();
-        ServiceHubContext signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? "TBABot", cts.Token);
+        var signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? Constants.SignalR.HubName, cts.Token);
         Microsoft.AspNetCore.Http.Connections.NegotiationResponse userNegotiation = await signalRhub.NegotiateAsync(new NegotiationOptions
         {
-            UserId = "orchestrator",
+            UserId = Constants.SignalR.Users.Orchestrator,
             EnableDetailedErrors = true
         });
 
-        b.Services.AddSingleton<IServiceHubContext>(signalRhub);
-
+        b.Services.AddSingleton(signalRhub);
         HubConnection hubConn = new HubConnectionBuilder()
             .WithUrl(userNegotiation.Url!, options =>
             {
@@ -79,6 +80,7 @@ internal partial class Program
             })
             .ConfigureLogging(lb =>
             {
+                lb.AddConfiguration(b.Configuration.GetSection("Logging"));
                 lb.AddSimpleConsole(o =>
                 {
                     o.SingleLine = true;
@@ -92,23 +94,13 @@ internal partial class Program
 
         IServiceCollection services = b.Services;
         ImmutableList<AgentDefinition> agents = JsonSerializer.Deserialize<List<AgentDefinition>>(b.Configuration["Agents"] ?? throw new ArgumentNullException("Agents", "Missing Agents environment variable"))?.ToImmutableList() ?? throw new ArgumentException("Unable to deserialize 'Agents' environment variable");
-        services.AddSingleton(agents);
-        services.AddLogging(lb =>
-        {
-            lb.AddSimpleConsole(o =>
+        services.AddSingleton(agents)
+            .AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
             {
-                o.SingleLine = true;
-                o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-                o.IncludeScopes = true;
+                ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
+                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+                User = Environment.MachineName
             });
-        });
-
-        services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
-        {
-            ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
-            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-            User = Environment.MachineName
-        });
 
         foreach (AgentDefinition? a in agents)
         {

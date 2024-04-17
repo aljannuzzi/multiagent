@@ -18,12 +18,7 @@ using Microsoft.VisualStudio.Threading;
 internal class Worker : IHostedService
 {
     private readonly ILogger _log;
-    private readonly AutoResetEvent waitingOnExpert = new(false);
-    private static TaskCompletionSource<string> expertAnswer = new();
-    private static readonly JoinableTaskFactory TaskFactory = new(new JoinableTaskContext());
 
-    private readonly IDisposable _questionHandler;
-    private readonly IDisposable _answerHandler;
     private readonly Kernel _sk;
     private readonly HubConnection _receiver;
     private readonly IServiceHubContext _sender;
@@ -31,77 +26,71 @@ internal class Worker : IHostedService
 
     public Worker(Kernel sk, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection receiver, IServiceHubContext sender, ImmutableList<AgentDefinition> agents)
     {
-        _log = loggerFactory.CreateLogger("Orchestrator");
+        _log = loggerFactory.CreateLogger(Constants.SignalR.Users.Orchestrator);
         _sk = sk;
         _receiver = receiver;
         _sender = sender;
         _agents = agents;
 
-        _answerHandler = receiver.On<string>("answer", s =>
+        receiver.On<string, string>(Constants.SignalR.Functions.GetAnswer, async (prompt) =>
         {
-            System.Diagnostics.Debug.WriteLine($@"***** {s} *****");
-            //expertAnswer.SetResult(s);
-        });
-
-        _questionHandler = receiver.On<string, string>("question", async (prompt, conn) =>
-       {
-
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-           sk.FunctionFilters.Add(new DebugFunctionFilter());
+            sk.FunctionFilters.Add(new DebugFunctionFilter());
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-           do
-           {
-               try
-               {
-                   FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings));
-                   _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
+            do
+            {
+                try
+                {
+                    FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings));
+                    _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 
-                   await sender.Clients.Client(conn).SendAsync("answer", promptResult.ToString());
-                   break;
-               }
-               catch (HttpOperationException ex)
-               {
-                   if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests && ex.InnerException is Azure.RequestFailedException rex)
-                   {
-                       Azure.Response? resp = rex.GetRawResponse();
-                       if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
-                       {
-                           _log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
-                           await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime))).ConfigureAwait(false);
-                       }
-                       else
-                       {
-                           throw;
-                       }
-                   }
-                   else
-                   {
-                       throw;
-                   }
-               }
-               catch (Exception ex) { }
-           } while (true);
-       });
+                    return promptResult.ToString();
+                }
+                catch (HttpOperationException ex)
+                {
+                    if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests && ex.InnerException is Azure.RequestFailedException rex)
+                    {
+                        Azure.Response? resp = rex.GetRawResponse();
+                        if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
+                        {
+                            _log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
+                            await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime))).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                catch (Exception ex) { }
+            } while (true);
+        });
     }
+
+    private static string CacheConnectionId { get; set; }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        await _receiver.StartAsync(cancellationToken);
+        _receiver.On<string>(Constants.SignalR.Functions.RegisterCacheConnection, c => CacheConnectionId = c);
+
         _log.LogDebug("Wiring up agents...");
 
         var answer = string.Empty;
         AutoResetEvent awaitingAnswer = new(false);
-        await _receiver.StartAsync(cancellationToken);
 
         var expertFunctions = new List<KernelFunction>(_agents.Count);
         foreach (AgentDefinition a in _agents)
         {
             expertFunctions.Add(_sk.CreateFunctionFromMethod(async (string prompt) =>
             {
-                expertAnswer = new();
-                await _sender.Clients.User(a.Name).SendAsync("question", prompt, _receiver.ConnectionId, cancellationToken);
-
-                return await expertAnswer.Task;
+                var connId = await _sender.Clients.Client(CacheConnectionId).InvokeAsync<string>(Constants.SignalR.Functions.GetUserConnectionId, a.Name, cancellationToken);
+                return await _sender.Clients.Client(connId).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, prompt, cancellationToken);
             }, a.Name, a.Description, [new("prompt") { IsRequired = true, ParameterType = typeof(string) }], new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })
             );
         }
