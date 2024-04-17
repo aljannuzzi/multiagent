@@ -22,11 +22,7 @@ IHost host = new HostBuilder()
         services.AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
             .AddTransient<DebugHttpHandler>()
-            .AddHttpClient()
-            .AddSignalR()
-                .AddAzureSignalR(o => o.ConnectionString = Environment.GetEnvironmentVariable("SignalRConnectionString") ?? throw new ArgumentNullException("SignalRConnectionString is missing", default(Exception)));
-
-        services.AddSingleton<AgentHub>();
+            .AddHttpClient();
 
         services.AddLogging(lb =>
         {

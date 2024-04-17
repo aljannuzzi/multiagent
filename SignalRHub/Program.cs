@@ -1,17 +1,20 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 var host = new HostBuilder()
-    .ConfigureFunctionsWebApplication()
-    .ConfigureServices(services =>
+    .ConfigureLogging(lb =>
+        lb.SetMinimumLevel(LogLevel.Information)
+            .AddSimpleConsole())
+    .ConfigureFunctionsWebApplication(c =>
     {
-        services.AddApplicationInsightsTelemetryWorkerService()
+        c.Services.AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
-            .AddSignalRCore()
-                .AddAzureSignalR()
-                .AddJsonProtocol(o => o.PayloadSerializerOptions.WriteIndented = false);
+            .AddHttpClient();
+            //.AddSignalRCore().AddAzureSignalR();
     })
+    .ConfigureFunctionsWorkerDefaults()
     .Build();
 
 host.Run();

@@ -11,6 +11,11 @@ public static class Constants
             public const string Messages = "messages";
         }
 
+        public static class Events
+        {
+            public const string NewMessage = "newMessage";
+        }
+
         public static class Users
         {
             public const string EndUser = nameof(EndUser);

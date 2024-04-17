@@ -1,24 +1,42 @@
 namespace SignalRHub;
-using System.Net;
+
+using System;
 
 using Common;
 
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Azure.Functions.Worker.SignalRService;
 using Microsoft.Azure.SignalR.Management;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
-public class TbaSignalRHub(ServiceHubContext sender, IHttpClientFactory httpClientFactory) : ServerlessHub(sender)
+public class TbaSignalRHub(IServiceProvider sp, IHttpClientFactory httpClientFactory, LoggerFactory loggerFactory)
 {
     private readonly HttpClient HttpClient = httpClientFactory.CreateClient(nameof(TbaSignalRHub));
+    private readonly ServiceHubContext _signalRcontext = sp.GetRequiredService<ServiceHubContext>();
+    private readonly ILogger _logger = loggerFactory.CreateLogger<TbaSignalRHub>();
 
     [Function("negotiate")]
-    public static HttpResponseData Negotiate([HttpTrigger(AuthorizationLevel.Anonymous)] HttpRequestData req,
-        [SignalRConnectionInfoInput(HubName = Constants.SignalR.HubName)] string connectionInfo)
+    public async Task<HttpResponseData> NegotiateAsync([HttpTrigger(AuthorizationLevel.Anonymous, "POST")] HttpRequestData req, [SignalRConnectionInfoInput(HubName = "Hub", UserId = "{query.userid}")] SignalRConnectionInfo signalRConnectionInfo)
     {
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/json");
-        response.WriteString(connectionInfo);
-        return response;
+        _logger.LogWarning("Fielding log request!");
+
+        var output = req.CreateResponse();
+        await output.WriteAsJsonAsync(await _signalRcontext.NegotiateAsync(new() { UserId = "foo" }));
+
+        return output;
+    }
+
+    [Function(Constants.SignalR.Functions.RegisterConnectionId)]
+    public static Task RegisterConnectionId([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.RegisterConnectionId)] SignalRInvocationContext invocationContext)
+    {
+        return Task.CompletedTask;
+    }
+
+
+    [Function(Constants.SignalR.Functions.GetAnswer)]
+    public static Task GetAnswer([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.GetAnswer)] SignalRInvocationContext invocationContext)
+    {
+        return Task.CompletedTask;
     }
 }

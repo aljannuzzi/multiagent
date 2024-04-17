@@ -3,13 +3,10 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Azure.SignalR;
-using Microsoft.Azure.SignalR.Management;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-
-using SignalRConnectionCache;
 
 using TBAStatReader;
 
@@ -42,37 +39,12 @@ internal partial class Program
 
         ILoggerFactory loggerFactory = b.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(b.Configuration["SignalRConnectionString"]);
-        var signalRConnString = b.Configuration["SignalRConnectionString"];
-        var options = new ServiceManagerOptions
-        {
-            ConnectionString = signalRConnString
-        };
-
-        b.Services.AddSingleton<Hub, ConnectionTrackingHub>();
-
-        ServiceManager signalRserviceManager = new ServiceManagerBuilder()
-            .WithOptions(o =>
-            {
-                o.ConnectionString = options.ConnectionString;
-                o.ServiceTransportType = ServiceTransportType.Persistent;
-            })
-            .WithLoggerFactory(loggerFactory)
-            .BuildServiceManager();
-        ServiceHubContext signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? Constants.SignalR.HubName, cts.Token);
-        Microsoft.AspNetCore.Http.Connections.NegotiationResponse userNegotiation = await signalRhub.NegotiateAsync(new NegotiationOptions
-        {
-            UserId = Constants.SignalR.Users.EndUser,
-            EnableDetailedErrors = true
-        });
-
-        b.Services.AddSingleton(signalRhub);
+        b.Services
+            .AddSingleton<IUserIdProvider, UserIdProvider>();
+            //.AddSignalRCore();
+                //.AddAzureSignalR();
         HubConnection hubConn = new HubConnectionBuilder()
-            .WithUrl(userNegotiation.Url!, options =>
-            {
-                options.AccessTokenProvider = () => Task.FromResult(userNegotiation.AccessToken);
-                options.HttpMessageHandlerFactory = f => new DebugHttpHandler(loggerFactory, f);
-            })
+            .WithUrl(b.Configuration["SignalREndpoint"]!)
             .ConfigureLogging(lb =>
             {
                 lb.AddConfiguration(b.Configuration.GetSection("Logging"));
@@ -103,4 +75,9 @@ internal partial class Program
 
         await b.Build().RunAsync(cts.Token);
     }
+}
+
+class UserIdProvider : IUserIdProvider
+{
+    public string? GetUserId(HubConnectionContext connection) => Constants.SignalR.Users.EndUser;
 }
