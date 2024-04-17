@@ -1,5 +1,6 @@
 ﻿namespace Orchestrator_SignalR;
 using System.Collections.Immutable;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 using Assistants;
@@ -10,7 +11,6 @@ using Common;
 
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Azure.SignalR;
-using Microsoft.Azure.SignalR.Management;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -49,35 +49,29 @@ internal partial class Program
 
         ILoggerFactory loggerFactory = b.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(b.Configuration["SignalRConnectionString"]);
-        var signalRConnString = b.Configuration["SignalRConnectionString"];
-        var options = new ServiceManagerOptions
+        var client = new HttpClient();
+        HttpResponseMessage hubNegotiateResponse = new();
+        var negotiationLogger = loggerFactory.CreateLogger("negotiation");
+        do
         {
-            ConnectionString = signalRConnString
-        };
-
-        ServiceManager signalRserviceManager = new ServiceManagerBuilder()
-            .WithOptions(o =>
+            try
             {
-                o.ConnectionString = options.ConnectionString;
-                o.ServiceTransportType = ServiceTransportType.Persistent;
-            })
-            .WithLoggerFactory(loggerFactory)
-            .BuildServiceManager();
-        var signalRhub = await signalRserviceManager.CreateHubContextAsync(b.Configuration["SignalRHubName"] ?? Constants.SignalR.HubName, cts.Token);
-        Microsoft.AspNetCore.Http.Connections.NegotiationResponse userNegotiation = await signalRhub.NegotiateAsync(new NegotiationOptions
-        {
-            UserId = Constants.SignalR.Users.Orchestrator,
-            EnableDetailedErrors = true
-        });
-
-        b.Services.AddSingleton(signalRhub);
-        HubConnection hubConn = new HubConnectionBuilder()
-            .WithUrl(userNegotiation.Url!, options =>
+                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={Constants.SignalR.Users.Orchestrator}", null);
+                break;
+            }
+            catch (Exception e)
             {
-                options.AccessTokenProvider = () => Task.FromResult(userNegotiation.AccessToken);
-                options.HttpMessageHandlerFactory = f => new DebugHttpHandler(loggerFactory, f);
-            })
+                negotiationLogger.LogDebug(e, $@"Negotiation failed");
+                await Task.Delay(1000);
+            }
+        } while (true);
+
+        hubNegotiateResponse.EnsureSuccessStatusCode();
+
+        var connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
+
+        var hubConn = new HubConnectionBuilder()
+            .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
             .ConfigureLogging(lb =>
             {
                 lb.AddConfiguration(b.Configuration.GetSection("Logging"));
@@ -112,7 +106,6 @@ internal partial class Program
         {
             IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
             ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            IServiceHubContext sender = sp.GetRequiredService<IServiceHubContext>();
 
             IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
             kernelBuilder.Services.AddSingleton(loggerFactory);

@@ -1,6 +1,7 @@
-﻿using Common;
+﻿using System.Net.Http.Json;
 
-using Microsoft.AspNetCore.SignalR;
+using Common;
+
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Azure.SignalR;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,7 @@ internal partial class Program
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
         b.Services.AddHostedService<Worker>()
+            .AddHttpClient()
             .AddTransient<DebugHttpHandler>()
             .AddLogging(lb =>
             {
@@ -39,25 +41,39 @@ internal partial class Program
 
         ILoggerFactory loggerFactory = b.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
 
-        b.Services
-            .AddSingleton<IUserIdProvider, UserIdProvider>();
-            //.AddSignalRCore();
-                //.AddAzureSignalR();
-        HubConnection hubConn = new HubConnectionBuilder()
-            .WithUrl(b.Configuration["SignalREndpoint"]!)
-            .ConfigureLogging(lb =>
+        var client = new HttpClient();
+        HttpResponseMessage hubNegotiateResponse = new();
+        var negotiationLogger = loggerFactory.CreateLogger("negotiation");
+        do
+        {
+            try
             {
-                lb.AddConfiguration(b.Configuration.GetSection("Logging"));
-                lb.AddSimpleConsole(o =>
+                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={Constants.SignalR.Users.EndUser}", null);
+                break;
+            }
+            catch (Exception e)
+            {
+                negotiationLogger.LogDebug(e, $@"Negotiation failed");
+                await Task.Delay(1000);
+            }
+        } while (true);
+
+        hubNegotiateResponse.EnsureSuccessStatusCode();
+
+        var connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
+
+        var hubBuilder = new HubConnectionBuilder()
+            .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
+            .ConfigureLogging(lb => lb
+                .AddConfiguration(b.Configuration.GetSection("Logging"))
+                .AddSimpleConsole(o =>
                 {
                     o.SingleLine = true;
                     o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
                     o.IncludeScopes = true;
-                });
-            })
-            .Build();
-
-        b.Services.AddSingleton(hubConn);
+                })
+            );
+        b.Services.AddSingleton(hubBuilder.Build());
 
         //b.Services.AddHttpClient("Orchestrator", (sp, c) =>
         //    {
@@ -75,9 +91,4 @@ internal partial class Program
 
         await b.Build().RunAsync(cts.Token);
     }
-}
-
-class UserIdProvider : IUserIdProvider
-{
-    public string? GetUserId(HubConnectionContext connection) => Constants.SignalR.Users.EndUser;
 }

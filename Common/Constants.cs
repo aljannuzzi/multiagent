@@ -40,6 +40,12 @@ public static class Constants
             public const string GetUserConnectionId = nameof(GetUserConnectionId);
 
             public const string RegisterCacheConnection = nameof(RegisterCacheConnection);
+
+            public const string Introduce = nameof(Introduce);
+
+            public const string GetAnswerFromExpert = nameof(GetAnswerFromExpert);
+
+            public const string ExpertAnswerReceived = nameof(ExpertAnswerReceived);
         }
     }
 }
