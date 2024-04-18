@@ -43,9 +43,11 @@ public static class Constants
 
             public const string Introduce = nameof(Introduce);
 
-            public const string GetAnswerFromExpert = nameof(GetAnswerFromExpert);
+            public const string AskExpert = nameof(AskExpert);
 
             public const string ExpertAnswerReceived = nameof(ExpertAnswerReceived);
+
+            public const string ExpertJoined = nameof(ExpertJoined);
         }
     }
 }

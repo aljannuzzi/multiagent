@@ -72,7 +72,7 @@ internal partial class Program
                     o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
                     o.IncludeScopes = true;
                 })
-            );
+            ).WithAutomaticReconnect();
         b.Services.AddSingleton(hubBuilder.Build());
 
         //b.Services.AddHttpClient("Orchestrator", (sp, c) =>

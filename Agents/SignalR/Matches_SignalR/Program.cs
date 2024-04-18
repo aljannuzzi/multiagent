@@ -8,7 +8,6 @@ using Azure.Identity;
 using Common;
 
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Azure.SignalR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -104,10 +103,10 @@ internal partial class Program
                 IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
                 kernelBuilder.Services.AddSingleton(loggerFactory);
                 kernelBuilder.Plugins.AddFromType<Calendar>();
-                kernelBuilder.Plugins.AddFromObject(new TeamApi(new Configuration(new Dictionary<string, string>(),
+                kernelBuilder.Plugins.AddFromObject(new MatchApi(new Configuration(new Dictionary<string, string>(),
                     new Dictionary<string, string>() { { "X-TBA-Auth-Key", b.Configuration["TBA_API_KEY"] ?? throw new ArgumentNullException("TBA_API_KEY", "Missing TBA_API_KEY environment variable") } },
                     new Dictionary<string, string>()))
-                { Log = loggerFactory.CreateLogger(nameof(TeamApi)) });
+                { Log = loggerFactory.CreateLogger(nameof(MatchApi)) });
 
                 if (b.Configuration["AzureOpenAIKey"] is not null)
                 {

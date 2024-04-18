@@ -56,24 +56,24 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
         }
     }
 
-    [Function(Constants.SignalR.Functions.GetAnswerFromExpert)]
+    [Function(Constants.SignalR.Functions.AskExpert)]
     [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction GetAnswerFromExpert([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.GetAnswerFromExpert, "target", "expert", "prompt")] SignalRInvocationContext invocationContext, string target, string expert, string prompt)
+    public static SignalRMessageAction GetAnswerFromExpert([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.AskExpert, "expert", "prompt")] SignalRInvocationContext invocationContext, string expert, string prompt)
     {
         if (UserConnections.TryGetValue(expert, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswerFromExpert)
+            return new SignalRMessageAction(Constants.SignalR.Functions.AskExpert)
             {
                 ConnectionId = expertConn,
-                Arguments = [invocationContext.ConnectionId, prompt]
+                Arguments = [UserConnections[Constants.SignalR.Users.EndUser], prompt]
             };
         }
         else
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswerFromExpert)
+            return new SignalRMessageAction(Constants.SignalR.Functions.AskExpert)
             {
                 UserId = expert,
-                Arguments = [invocationContext.ConnectionId, prompt]
+                Arguments = [UserConnections[Constants.SignalR.Users.EndUser], prompt]
             };
 
         }
@@ -89,4 +89,20 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
             Arguments = [answer]
         };
     }
+
+
+    [Function(Constants.SignalR.Functions.Introduce)]
+    [SignalROutput(HubName = Constants.SignalR.HubName)]
+    public static SignalRMessageAction Introduce([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.Introduce, "name", "description")] SignalRInvocationContext invocationContext, string name, string description)
+    {
+        return new SignalRMessageAction(Constants.SignalR.Functions.Introduce)
+        {
+            ConnectionId = UserConnections[Constants.SignalR.Users.Orchestrator],
+            Arguments = [name, description]
+        };
+    }
+
+
+    [Function(nameof(Ping))]
+    public static string Ping([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, nameof(Ping))] SignalRInvocationContext invocationContext) => "pong";
 }

@@ -7,18 +7,17 @@ using System.Threading.Tasks;
 using Common;
 
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHostedService
+internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConfiguration appConfig) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
-    private TaskCompletionSource<string> _expertAnswer = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        signalr.On<string>("expertJoined", expertName => _log.LogDebug("{expertName} is available", expertName));
-        signalr.On<string>("newMessage", m => _log.LogWarning("Message received! {message}", m));
+        signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available", expertName));
 
         await signalr.StartAsync(cancellationToken);
 
@@ -37,8 +36,6 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
             }
         }
 
-        signalr.On<string>(Constants.SignalR.Functions.ExpertAnswerReceived, _expertAnswer.SetResult);
-
         do
         {
             Console.Write("> ");
@@ -48,18 +45,17 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
                 break;
             }
 
-            _expertAnswer = new(TaskCreationOptions.RunContinuationsAsynchronously);
             spinnerCancelToken = new();
             combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
-            var ans = await signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
+            var ans = signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
 
-            var a = await Task.WhenAny(_expertAnswer.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+            var a = await Task.WhenAny(ans, Task.Delay(TimeSpan.FromSeconds(int.Parse(appConfig["ExpertWaitTimeSeconds"] ?? "10"))));
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
-            if (a == _expertAnswer.Task)
+            if (a == ans)
             {
-                Console.WriteLine($@"EXPERT SAYS: {_expertAnswer.Task.Result}");
+                Console.WriteLine(ans.Result);
             }
             else
             {

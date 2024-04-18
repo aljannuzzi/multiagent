@@ -5,7 +5,7 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
-		<UserSecretsId>5631e549-948c-4903-be18-a06152c3600c</UserSecretsId>
+		<UserSecretsId>f3b45348-9c0d-4b66-aa62-2228d0369fbe</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -27,20 +27,19 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Api\TeamApi.cs" Link="TeamApi.cs" />
-		<Compile Include="..\..\Teams\TeamApi_Extras.cs" Link="TeamApi_Extras.cs" />
+		<ProjectReference Include="..\..\..\ApiClient\ApiClient.csproj" />
+		<ProjectReference Include="..\..\..\Assistants\Assistants.csproj" />
+		<ProjectReference Include="..\..\..\Models\Models.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Api\MatchApi.cs" Link="MatchApi.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<Content Include="appsettings.Development.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\..\..\ApiClient\ApiClient.csproj" />
-		<ProjectReference Include="..\..\..\Assistants\Assistants.csproj" />
-		<ProjectReference Include="..\..\..\Models\Models.csproj" />
 	</ItemGroup>
 
 </Project>

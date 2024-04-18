@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text.Json;
 
+using JsonCons.JmesPath;
+
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
 using Models.Json;
@@ -13,31 +16,55 @@ using TBAAPI.V3Client.Model;
 
 public partial class TeamApi
 {
+    internal ILogger? Log { get; set; }
+
     /// <summary>
     /// Searches for teams based on a JMESPath expression.
     /// </summary>
     /// <param name="jmesPathExpression">The JMESPath expression used to filter the teams.</param>
     /// <returns>A list of teams that match the JMESPath expression.</returns>
     [KernelFunction, Description("Searches for teams based on a JMESPath expression.")]
-    [return: Description("A list of teams that match the JMESPath expression.")]
-    public async Task<List<Team>> SearchTeamsAsync([Description("The JMESPath expression used to filter the teams.")] string jmesPathExpression)
+    [return: Description("A collection of JSON documents/objects resulting from the JMESPath expression.")]
+    public async Task<List<JsonDocument>> SearchTeamsAsync([Description("The query used to filter a JSON document with a single `teams` array of Team objects. Must be a valid JMESPath expression. Use lower-case strings for literals when searching.")] string jmesPathExpression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
 
-        List<Team> matches = [];
+        JsonTransformer transformer;
+        try
+        {
+            transformer = JsonTransformer.Parse(jmesPathExpression);
+        }
+        catch (JmesPathParseException)
+        {
+            throw new ArgumentException("Invalid JMESPath expression", jmesPathExpression);
+        }
+
+        List<JsonDocument> results = [];
         for (var i = 0; ; i++)
         {
-            List<Team> pageTeams = await GetTeamsAsync(i);
-            if (pageTeams?.Count is null or 0)
+            List<Team> teams = await GetTeamsAsync(i);
+            if (teams?.Count is null or 0)
             {
                 break;
             }
 
-            JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(JsonSerializer.SerializeToElement(pageTeams, JsonSerialzationOptions.Default), jmesPathExpression);
-            matches.AddRange(JsonSerializer.Deserialize<List<Team>>(filteredTeams, JsonSerialzationOptions.Default) ?? []);
+            JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { teams }, JsonSerialzationOptions.Default);
+            JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(eltToTransform, jmesPathExpression);
+            this.Log?.LogTrace("JsonCons.JMESPath result: {jsonConsResult}", filteredTeams.RootElement.ToString());
+
+            if (filteredTeams is not null)
+            {
+                if ((filteredTeams.RootElement.ValueKind is JsonValueKind.Array && filteredTeams.RootElement.EnumerateArray().Any())
+                    || filteredTeams.RootElement.ValueKind is JsonValueKind.Object && filteredTeams.RootElement.EnumerateObject().Any())
+                {
+                    results.Add(filteredTeams);
+                }
+            }
         }
 
-        return matches;
+        this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(results));
+
+        return results;
     }
 
     /// <summary>
@@ -58,6 +85,8 @@ public partial class TeamApi
 
         JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(JsonSerializer.SerializeToElement(matches, JsonSerialzationOptions.Default), jmesPathExpression);
         matches = JsonSerializer.Deserialize<List<Team>>(filteredTeams, JsonSerialzationOptions.Default) ?? [];
+
+        this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(matches));
 
         return matches;
     }

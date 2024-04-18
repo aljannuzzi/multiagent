@@ -69,7 +69,11 @@ internal partial class Program
         var connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
 
         var hubConn = new HubConnectionBuilder()
-            .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
+            .WithUrl(connInfo.Url, o =>
+            {
+                o.AccessTokenProvider = connInfo.GetAccessToken;
+                o.UseDefaultCredentials = true;
+            })
             .ConfigureLogging(lb =>
             {
                 lb.AddConfiguration(b.Configuration.GetSection("Logging"));
@@ -79,7 +83,7 @@ internal partial class Program
                     o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
                     o.IncludeScopes = true;
                 });
-            })
+            }).WithAutomaticReconnect()
             .Build();
 
         b.Services

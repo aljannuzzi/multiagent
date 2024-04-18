@@ -23,16 +23,16 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
     {
         await signalr.StartAsync(cancellationToken);
 
-        signalr.On<string, string>(Constants.SignalR.Functions.GetAnswer, async (t, s) => await signalr.SendAsync(Constants.SignalR.Functions.ExpertAnswerReceived, t, await AskExpertAsync(s)));
+        signalr.On<string, string>(Constants.SignalR.Functions.GetAnswer, async question => await AskExpertsAsync(question));
         signalr.On<string, string>(Constants.SignalR.Functions.Introduce, (n, d) => AddExpert(n, d, cancellationToken));
 
-        Console.WriteLine("Awaiting question from user...");
+        _log.LogInformation("Awaiting question from user...");
     }
 
     private void AddExpert(string name, string description, CancellationToken cancellationToken)
     {
         _log.LogDebug("Adding {expertName} to colleagues...", name);
-        kernel.ImportPluginFromFunctions(name, [kernel.CreateFunctionFromMethod((string prompt) => signalr.InvokeAsync<string>("GetAnswerFromExpert", name, prompt, cancellationToken),
+        kernel.ImportPluginFromFunctions(name, [kernel.CreateFunctionFromMethod((string prompt) => signalr.InvokeAsync<string>(Constants.SignalR.Functions.AskExpert, name, prompt, cancellationToken),
             name, description,
             [new("prompt") { IsRequired = true, ParameterType = typeof(string) }],
             new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })]
@@ -42,23 +42,22 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private async Task<string> AskExpertAsync(string prompt)
+    private async Task<string> AskExpertsAsync(string question)
     {
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
         kernel.FunctionFilters.Add(new DebugFunctionFilter());
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-        _log.LogInformation("Question received: {question}", prompt);
+        _log.LogInformation("Question received: {question}", question);
 
         do
         {
             try
             {
-                FunctionResult promptResult = await kernel.InvokePromptAsync(prompt, new(promptSettings));
+                FunctionResult promptResult = await kernel.InvokePromptAsync(question, new(promptSettings));
                 _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 
                 return promptResult.ToString();
-                break;
             }
             catch (HttpOperationException ex)
             {
