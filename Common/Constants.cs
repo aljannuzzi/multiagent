@@ -48,6 +48,8 @@ public static class Constants
             public const string ExpertAnswerReceived = nameof(ExpertAnswerReceived);
 
             public const string ExpertJoined = nameof(ExpertJoined);
+
+            public const string ExpertLeft = nameof(ExpertLeft);
         }
     }
 }

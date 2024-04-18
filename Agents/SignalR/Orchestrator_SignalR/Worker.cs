@@ -17,27 +17,36 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 {
     private readonly ILogger _log = loggerFactory.CreateLogger(Constants.SignalR.Users.Orchestrator);
 
-    private static string CacheConnectionId { get; set; }
-
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await signalr.StartAsync(cancellationToken);
 
-        signalr.On<string, string>(Constants.SignalR.Functions.GetAnswer, async question => await AskExpertsAsync(question));
+        signalr.On<string, string>(Constants.SignalR.Functions.GetAnswer, AskExpertsAsync);
         signalr.On<string, string>(Constants.SignalR.Functions.Introduce, (n, d) => AddExpert(n, d, cancellationToken));
+        signalr.On<string>(Constants.SignalR.Functions.ExpertLeft, RemoveExpert);
 
         _log.LogInformation("Awaiting question from user...");
     }
 
     private void AddExpert(string name, string description, CancellationToken cancellationToken)
     {
-        _log.LogDebug("Adding {expertName} to colleagues...", name);
+        _log.LogDebug("Adding {expertName} to panel...", name);
         kernel.ImportPluginFromFunctions(name, [kernel.CreateFunctionFromMethod((string prompt) => signalr.InvokeAsync<string>(Constants.SignalR.Functions.AskExpert, name, prompt, cancellationToken),
             name, description,
             [new("prompt") { IsRequired = true, ParameterType = typeof(string) }],
             new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })]
         );
+
         _log.LogTrace("Expert {expertName} added.", name);
+    }
+
+    private void RemoveExpert(string name)
+    {
+        _log.LogDebug("Removing {expertName} from panel...", name);
+
+        kernel.Plugins.Remove(kernel.Plugins[name]);
+
+        _log.LogTrace("Expert {expertName} removed.", name);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

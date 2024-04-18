@@ -25,10 +25,18 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
             if (username.EndsWith("expert", StringComparison.InvariantCultureIgnoreCase) is true)
             {
                 _log.LogDebug("Expert {expertName} connected.", username);
-                await this.Clients.All.SendCoreAsync(Constants.SignalR.Functions.ExpertJoined, [username]);
+                await this.Clients.All.SendCoreAsync(Constants.SignalR.Functions.ExpertJoined, [username]).ConfigureAwait(false);
 
                 _log.LogTrace("All clients notified.");
             }
+        }
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (this.Context.UserIdentifier?.EndsWith("Expert", StringComparison.InvariantCultureIgnoreCase) is true)
+        {
+            await this.Clients.All.SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier).ConfigureAwait(false);
         }
     }
 
