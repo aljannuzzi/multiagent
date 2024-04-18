@@ -1,7 +1,6 @@
 ﻿namespace TBAStatReader;
 
 using System;
-using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.VisualStudio.Threading;
 
-internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection signalr, ImmutableList<AgentDefinition> agents) : IHostedService
+internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection signalr) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger(Constants.SignalR.Users.Orchestrator);
 
@@ -24,7 +23,7 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
     {
         await signalr.StartAsync(cancellationToken);
 
-        signalr.On<string>(Constants.SignalR.Functions.GetAnswer, AskExpertAsync);
+        signalr.On<string, string>(Constants.SignalR.Functions.GetAnswer, async (t, s) => await signalr.SendAsync(Constants.SignalR.Functions.ExpertAnswerReceived, t, await AskExpertAsync(s)));
         signalr.On<string, string>(Constants.SignalR.Functions.Introduce, (n, d) => AddExpert(n, d, cancellationToken));
 
         Console.WriteLine("Awaiting question from user...");
@@ -43,21 +42,22 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    private async Task AskExpertAsync(string prompt)
+    private async Task<string> AskExpertAsync(string prompt)
     {
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
         kernel.FunctionFilters.Add(new DebugFunctionFilter());
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
+        _log.LogInformation("Question received: {question}", prompt);
+
         do
         {
             try
             {
-                var promptResult = "Answered! :)";
-                //FunctionResult promptResult = await kernel.InvokePromptAsync(prompt, new(promptSettings));
-                //_log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
+                FunctionResult promptResult = await kernel.InvokePromptAsync(prompt, new(promptSettings));
+                _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 
-                await signalr.SendAsync(Constants.SignalR.Functions.ExpertAnswerReceived, promptResult);
+                return promptResult.ToString();
                 break;
             }
             catch (HttpOperationException ex)

@@ -1,7 +1,5 @@
 ﻿namespace Orchestrator_SignalR;
-using System.Collections.Immutable;
 using System.Net.Http.Json;
-using System.Text.Json;
 
 using Assistants;
 
@@ -84,53 +82,43 @@ internal partial class Program
             })
             .Build();
 
-        b.Services.AddSingleton(hubConn);
-
-        IServiceCollection services = b.Services;
-        ImmutableList<AgentDefinition> agents = JsonSerializer.Deserialize<List<AgentDefinition>>(b.Configuration["Agents"] ?? throw new ArgumentNullException("Agents", "Missing Agents environment variable"))?.ToImmutableList() ?? throw new ArgumentException("Unable to deserialize 'Agents' environment variable");
-        services.AddSingleton(agents)
+        b.Services
+            .AddSingleton(hubConn)
             .AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
             {
                 ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
                 ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
                 User = Environment.MachineName
+            })
+            .AddSingleton(sp =>
+            {
+                IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+
+                IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
+                kernelBuilder.Services.AddSingleton(loggerFactory);
+                kernelBuilder.Plugins.AddFromType<Calendar>();
+
+                if (b.Configuration["AzureOpenAIKey"] is not null)
+                {
+                    kernelBuilder.AddAzureOpenAIChatCompletion(
+                        b.Configuration["AzureOpenDeployment"]!,
+                        b.Configuration["AzureOpenAIEndpoint"]!,
+                        b.Configuration["AzureOpenAIKey"]!,
+                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                }
+                else
+                {
+                    kernelBuilder.AddAzureOpenAIChatCompletion(
+                        b.Configuration["AzureOpenDeployment"]!,
+                        b.Configuration["AzureOpenAIEndpoint"]!,
+                        new DefaultAzureCredential(),
+                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                }
+
+                Kernel kernel = kernelBuilder.Build();
+                return kernel;
             });
-
-        foreach (AgentDefinition? a in agents)
-        {
-            services.AddHttpClient(a.Name, c => c.BaseAddress = a.Endpoint)
-                .AddHttpMessageHandler<DebugHttpHandler>();
-        }
-
-        services.AddSingleton(sp =>
-        {
-            IHttpClientFactory httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            ILoggerFactory loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-
-            IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
-            kernelBuilder.Services.AddSingleton(loggerFactory);
-            kernelBuilder.Plugins.AddFromType<Calendar>();
-
-            if (b.Configuration["AzureOpenAIKey"] is not null)
-            {
-                kernelBuilder.AddAzureOpenAIChatCompletion(
-                    b.Configuration["AzureOpenDeployment"]!,
-                    b.Configuration["AzureOpenAIEndpoint"]!,
-                    b.Configuration["AzureOpenAIKey"]!,
-                    httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
-            }
-            else
-            {
-                kernelBuilder.AddAzureOpenAIChatCompletion(
-                    b.Configuration["AzureOpenDeployment"]!,
-                    b.Configuration["AzureOpenAIEndpoint"]!,
-                    new DefaultAzureCredential(),
-                    httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
-            }
-
-            Kernel kernel = kernelBuilder.Build();
-            return kernel;
-        });
 
         await b.Build().RunAsync(cts.Token);
 

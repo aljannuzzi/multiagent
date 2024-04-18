@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 using Common;
 
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -14,7 +13,7 @@ using Microsoft.Extensions.Logging;
 internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
-    private readonly TaskCompletionSource<string> _expertAnswer = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource<string> _expertAnswer = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -32,13 +31,13 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
             while (!ct.IsCancellationRequested)
             {
                 Console.Write(progress.Next());
-                Console.CursorLeft--;
+                Console.CursorLeft = 0;
 
                 await Task.Delay(100, ct);
             }
         }
 
-        signalr.On<string>(Constants.SignalR.Functions.ExpertAnswerReceived, a => _expertAnswer.SetResult(a));
+        signalr.On<string>(Constants.SignalR.Functions.ExpertAnswerReceived, _expertAnswer.SetResult);
 
         do
         {
@@ -49,17 +48,18 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
                 break;
             }
 
+            _expertAnswer = new(TaskCreationOptions.RunContinuationsAsynchronously);
             spinnerCancelToken = new();
             combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
-            await signalr.SendAsync(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
+            var ans = await signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
 
-            var a = await Task.WhenAny(_expertAnswer.Task, Task.Delay(TimeSpan.FromSeconds(20)));
+            var a = await Task.WhenAny(_expertAnswer.Task, Task.Delay(TimeSpan.FromSeconds(30)));
             await spinnerCancelToken.CancelAsync();
-            Console.CursorLeft--;
+            Console.CursorLeft = 0;
             if (a == _expertAnswer.Task)
             {
-                Console.WriteLine(_expertAnswer.Task.Result);
+                Console.WriteLine($@"EXPERT SAYS: {_expertAnswer.Task.Result}");
             }
             else
             {

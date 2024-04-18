@@ -42,7 +42,7 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
             return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswer)
             {
                 ConnectionId = orchConn,
-                Arguments = [question]
+                Arguments = [invocationContext.ConnectionId, question]
             };
         }
         else
@@ -50,7 +50,7 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
             return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswer)
             {
                 UserId = Constants.SignalR.Users.Orchestrator,
-                Arguments = [question]
+                Arguments = [invocationContext.ConnectionId, question]
             };
 
         }
@@ -58,9 +58,9 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
 
     [Function(Constants.SignalR.Functions.GetAnswerFromExpert)]
     [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction GetAnswerFromExpert([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.GetAnswerFromExpert, "name", "prompt")] SignalRInvocationContext invocationContext, string name, string prompt)
+    public static SignalRMessageAction GetAnswerFromExpert([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.GetAnswerFromExpert, "target", "expert", "prompt")] SignalRInvocationContext invocationContext, string target, string expert, string prompt)
     {
-        if (UserConnections.TryGetValue(name, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
+        if (UserConnections.TryGetValue(expert, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
         {
             return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswerFromExpert)
             {
@@ -70,12 +70,23 @@ public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
         }
         else
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswer)
+            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswerFromExpert)
             {
-                UserId = Constants.SignalR.Users.Orchestrator,
+                UserId = expert,
                 Arguments = [invocationContext.ConnectionId, prompt]
             };
 
         }
+    }
+
+    [Function(Constants.SignalR.Functions.ExpertAnswerReceived)]
+    [SignalROutput(HubName = Constants.SignalR.HubName)]
+    public static SignalRMessageAction ExpertAnswerReceived([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.ExpertAnswerReceived, "target", "answer")] SignalRInvocationContext invocationContext, string target, string answer)
+    {
+        return new SignalRMessageAction(Constants.SignalR.Functions.ExpertAnswerReceived)
+        {
+            ConnectionId = target,
+            Arguments = [answer]
+        };
     }
 }
