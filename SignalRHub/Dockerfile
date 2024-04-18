@@ -1,24 +1,25 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0 AS base
-WORKDIR /home/site/wwwroot
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+USER app
+WORKDIR /app
 EXPOSE 8080
+EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["SignalRHub/SignalRHub.csproj", "SignalRHub/"]
-RUN dotnet restore "./SignalRHub/SignalRHub.csproj"
+COPY ["SignalRASPHub/SignalRASPHub.csproj", "SignalRASPHub/"]
+RUN dotnet restore "./SignalRASPHub/SignalRASPHub.csproj"
 COPY . .
-WORKDIR "/src/SignalRHub"
-RUN dotnet build "./SignalRHub.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/SignalRASPHub"
+RUN dotnet build "./SignalRASPHub.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./SignalRHub.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./SignalRASPHub.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
-WORKDIR /home/site/wwwroot
+WORKDIR /app
 COPY --from=publish /app/publish .
-ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
-    AzureFunctionsJobHost__Logging__Console__IsEnabled=true
+ENTRYPOINT ["dotnet", "SignalRASPHub.dll"]

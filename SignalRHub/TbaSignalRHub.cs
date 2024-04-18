@@ -1,108 +1,73 @@
-namespace SignalRHub;
+﻿namespace SignalRASPHub;
 
 using System.Collections.Concurrent;
 
 using Common;
 
-using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.SignalR;
 
-public class TbaSignalRHub(ILogger<TbaSignalRHub> logger)
+internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 {
     private static readonly ConcurrentDictionary<string, string> UserConnections = [];
+    private readonly ILogger _log = loggerFactory.CreateLogger<TbaSignalRHub>();
 
-    [Function("Negotiate")]
-    public SignalRConnectionInfo Negotiate([HttpTrigger(AuthorizationLevel.Anonymous, "POST")] HttpRequestData req,
-        [SignalRConnectionInfoInput(HubName = Constants.SignalR.HubName, UserId = "{query.userid}")] SignalRConnectionInfo signalRConnectionInfo)
+    public override async Task OnConnectedAsync()
     {
-        logger.LogInformation("Executing negotiation.");
-        return signalRConnectionInfo;
-    }
-
-    [Function("OnConnected")]
-    [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public SignalRMessageAction OnConnected([SignalRTrigger(Constants.SignalR.HubName, "connections", "connected")] SignalRInvocationContext invocationContext)
-    {
-        invocationContext.Headers.TryGetValue("Authorization", out var auth);
-        logger.LogInformation($"{invocationContext.ConnectionId} ({invocationContext.UserId}) has connected");
-        UserConnections.AddOrUpdate(invocationContext.UserId, invocationContext.ConnectionId, (_, _) => invocationContext.ConnectionId);
-        return new SignalRMessageAction("newConnection")
+        var username = this.Context.UserIdentifier;
+        if (string.IsNullOrWhiteSpace(username))
         {
-            Arguments = [invocationContext.ConnectionId, auth],
-        };
+            _log.LogWarning("UserID empty!");
+        }
+        else
+        {
+            UserConnections.AddOrUpdate(username, this.Context.ConnectionId, (_, _) => this.Context.ConnectionId);
+            _log.LogDebug("Stored connection {connectionId} for user {userId}", this.Context.ConnectionId, username);
+            if (username.EndsWith("expert", StringComparison.InvariantCultureIgnoreCase) is true)
+            {
+                _log.LogDebug("Expert {expertName} connected.", username);
+                await this.Clients.All.SendCoreAsync(Constants.SignalR.Functions.ExpertJoined, [username]).ConfigureAwait(false);
+
+                _log.LogTrace("All clients notified.");
+            }
+        }
     }
 
-    [Function(Constants.SignalR.Functions.GetAnswer)]
-    [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction GetAnswer([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.GetAnswer, "question")] SignalRInvocationContext invocationContext, string question)
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        if (this.Context.UserIdentifier?.EndsWith("Expert", StringComparison.InvariantCultureIgnoreCase) is true)
+        {
+            await this.Clients.All.SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier).ConfigureAwait(false);
+        }
+    }
+
+    [HubMethodName(Constants.SignalR.Functions.GetAnswer)]
+    public async Task<string> GetAnswerAsync(string question)
     {
         if (UserConnections.TryGetValue(Constants.SignalR.Users.Orchestrator, out var orchConn) && !string.IsNullOrWhiteSpace(orchConn))
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswer)
-            {
-                ConnectionId = orchConn,
-                Arguments = [invocationContext.ConnectionId, question]
-            };
+            return await this.Clients.Client(orchConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
         }
         else
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.GetAnswer)
-            {
-                UserId = Constants.SignalR.Users.Orchestrator,
-                Arguments = [invocationContext.ConnectionId, question]
-            };
-
+            _log.LogError("Unable to send GetAnswer request to orchestrator; connection not found!");
+            return "ERROR: Orchestrator not connected!";
         }
     }
 
-    [Function(Constants.SignalR.Functions.AskExpert)]
-    [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction GetAnswerFromExpert([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.AskExpert, "expert", "prompt")] SignalRInvocationContext invocationContext, string expert, string prompt)
+    [HubMethodName(Constants.SignalR.Functions.AskExpert)]
+    public async Task<string> AskExpertAsync(string expertName, string question)
     {
-        if (UserConnections.TryGetValue(expert, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
+        if (UserConnections.TryGetValue(expertName, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.AskExpert)
-            {
-                ConnectionId = expertConn,
-                Arguments = [UserConnections[Constants.SignalR.Users.EndUser], prompt]
-            };
+            return await this.Clients.Client(expertConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
         }
         else
         {
-            return new SignalRMessageAction(Constants.SignalR.Functions.AskExpert)
-            {
-                UserId = expert,
-                Arguments = [UserConnections[Constants.SignalR.Users.EndUser], prompt]
-            };
-
+            _log.LogError("Unable to send GetAnswer request to {expertName}; connection not found!", expertName);
+            return $@"ERROR: Expert '{expertName}' is not here!";
         }
     }
 
-    [Function(Constants.SignalR.Functions.ExpertAnswerReceived)]
-    [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction ExpertAnswerReceived([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.ExpertAnswerReceived, "target", "answer")] SignalRInvocationContext invocationContext, string target, string answer)
-    {
-        return new SignalRMessageAction(Constants.SignalR.Functions.ExpertAnswerReceived)
-        {
-            ConnectionId = target,
-            Arguments = [answer]
-        };
-    }
-
-
-    [Function(Constants.SignalR.Functions.Introduce)]
-    [SignalROutput(HubName = Constants.SignalR.HubName)]
-    public static SignalRMessageAction Introduce([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, Constants.SignalR.Functions.Introduce, "name", "description")] SignalRInvocationContext invocationContext, string name, string description)
-    {
-        return new SignalRMessageAction(Constants.SignalR.Functions.Introduce)
-        {
-            ConnectionId = UserConnections[Constants.SignalR.Users.Orchestrator],
-            Arguments = [name, description]
-        };
-    }
-
-
-    [Function(nameof(Ping))]
-    public static string Ping([SignalRTrigger(Constants.SignalR.HubName, Constants.SignalR.Categories.Messages, nameof(Ping))] SignalRInvocationContext invocationContext) => "pong";
+    [HubMethodName(Constants.SignalR.Functions.Introduce)]
+    public Task IntroduceAsync(string name, string description) => this.Clients.Client(UserConnections[Constants.SignalR.Users.Orchestrator]).SendAsync(Constants.SignalR.Functions.Introduce, name, description);
 }
