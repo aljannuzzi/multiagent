@@ -55,7 +55,7 @@ public partial class TeamApi
             if (filteredTeams is not null)
             {
                 if ((filteredTeams.RootElement.ValueKind is JsonValueKind.Array && filteredTeams.RootElement.EnumerateArray().Any())
-                    || filteredTeams.RootElement.ValueKind is JsonValueKind.Object && filteredTeams.RootElement.EnumerateObject().Any())
+                    || (filteredTeams.RootElement.ValueKind is JsonValueKind.Object && filteredTeams.RootElement.EnumerateObject().Any()))
                 {
                     results.Add(filteredTeams);
                 }

@@ -19,6 +19,8 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
     {
         signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available", expertName));
 
+        _log.LogInformation("Connecting to server...");
+
         await signalr.StartAsync(cancellationToken);
 
         Console.WriteLine("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
@@ -48,9 +50,9 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
             spinnerCancelToken = new();
             combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
-            var ans = signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
+            Task<string> ans = signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
 
-            var a = await Task.WhenAny(ans, Task.Delay(TimeSpan.FromSeconds(int.Parse(appConfig["ExpertWaitTimeSeconds"] ?? "10"))));
+            Task a = await Task.WhenAny(ans, Task.Delay(TimeSpan.FromSeconds(int.Parse(appConfig["ExpertWaitTimeSeconds"] ?? "10")), cancellationToken));
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
             if (a == ans)

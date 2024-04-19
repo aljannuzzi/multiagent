@@ -47,7 +47,7 @@ public partial class MatchApi
             if (filteredMatches is not null)
             {
                 if ((filteredMatches.RootElement.ValueKind is JsonValueKind.Array && filteredMatches.RootElement.EnumerateArray().Any())
-                    || filteredMatches.RootElement.ValueKind is JsonValueKind.Object && filteredMatches.RootElement.EnumerateObject().Any())
+                    || (filteredMatches.RootElement.ValueKind is JsonValueKind.Object && filteredMatches.RootElement.EnumerateObject().Any()))
                 {
                     retVal = filteredMatches;
                 }
@@ -87,7 +87,7 @@ public partial class MatchApi
             if (filteredMatches is not null)
             {
                 if ((filteredMatches.RootElement.ValueKind is JsonValueKind.Array && filteredMatches.RootElement.EnumerateArray().Any())
-                    || filteredMatches.RootElement.ValueKind is JsonValueKind.Object && filteredMatches.RootElement.EnumerateObject().Any())
+                    || (filteredMatches.RootElement.ValueKind is JsonValueKind.Object && filteredMatches.RootElement.EnumerateObject().Any()))
                 {
                     retVal = filteredMatches;
                 }

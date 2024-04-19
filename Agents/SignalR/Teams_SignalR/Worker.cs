@@ -24,7 +24,7 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
         await receiver.StartAsync(cancellationToken);
 
         _log.LogDebug("Introducing myself to the orchestrator...");
-        await receiver.SendAsync(Constants.SignalR.Functions.Introduce, appConfig.GetRequiredSection("ExpertDefinition")["Name"], appConfig.GetRequiredSection("ExpertDefinition")["Description"]);
+        await receiver.SendAsync(Constants.SignalR.Functions.Introduce, appConfig.GetRequiredSection("ExpertDefinition")["Name"], appConfig.GetRequiredSection("ExpertDefinition")["Description"], cancellationToken: cancellationToken);
 
         _log.LogInformation("Awaiting question from orchestrator...");
 

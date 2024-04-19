@@ -55,12 +55,12 @@ internal partial class Program
 
         var client = new HttpClient();
         HttpResponseMessage hubNegotiateResponse = new();
-        var negotiationLogger = loggerFactory.CreateLogger("negotiation");
-        do
+        ILogger negotiationLogger = loggerFactory.CreateLogger("negotiation");
+        for (int i = 0; i < 10; i++)
         {
             try
             {
-                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={b.Configuration.GetRequiredSection("ExpertDefinition")["Name"]}", null);
+                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={Constants.SignalR.Users.EndUser}", null, cts.Token);
                 break;
             }
             catch (Exception e)
@@ -68,13 +68,29 @@ internal partial class Program
                 negotiationLogger.LogDebug(e, $@"Negotiation failed");
                 await Task.Delay(1000);
             }
-        } while (true);
+        }
+
+        if (hubNegotiateResponse is null)
+        {
+            negotiationLogger.LogCritical("Unable to connect to server. Exiting.");
+            return;
+        }
 
         hubNegotiateResponse.EnsureSuccessStatusCode();
 
-        var connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
+        Models.SignalR.ConnectionInfo? connInfo;
+        try
+        {
+            connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
+        }
+        catch (Exception ex)
+        {
+            negotiationLogger.LogDebug(ex, "Error parsing negotiation response");
+            negotiationLogger.LogCritical("Unable to connect to server. Exiting.");
+            return;
+        }
 
-        var hubConn = new HubConnectionBuilder()
+        HubConnection hubConn = new HubConnectionBuilder()
             .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
             .ConfigureLogging(lb =>
             {
