@@ -2,7 +2,7 @@
   "profiles": {
     "TBAStatReader": {
       "commandName": "Project",
-      "commandLineArgs": "--debug=true --maxEvents=3 --AzureOpenDeployment=gpt-35-turbo",
+      "commandLineArgs": "--AzureOpenDeployment=gpt-35-turbo",
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"
       }
