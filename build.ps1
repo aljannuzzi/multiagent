@@ -32,6 +32,8 @@ if (-not $NoBuild)
 
 if (-not $NoDocker)
 {
+    docker rmi -f signalrhub orchestrator districtsagent eventsagent matchesagent teamsagent > $null
+
     Write-Output "Building Docker images..."
 
     Start-Job -Name "Build SignalRHub" {
