@@ -119,8 +119,11 @@ internal partial class Program
                 kernelBuilder.Services.AddSingleton(loggerFactory);
                 kernelBuilder.Plugins.AddFromType<Calendar>();
 
+                var log = loggerFactory.CreateLogger("SKSetup");
                 if (b.Configuration["AzureOpenAIKey"] is not null)
                 {
+                    log.LogTrace("Using AzureOpenAIKey {AzureOpenAIKey}", b.Configuration["AzureOpenAIKey"]);
+
                     kernelBuilder.AddAzureOpenAIChatCompletion(
                         b.Configuration["AzureOpenDeployment"]!,
                         b.Configuration["AzureOpenAIEndpoint"]!,
@@ -129,6 +132,8 @@ internal partial class Program
                 }
                 else
                 {
+                    log.LogWarning("AzureOpenAIKey not found. Using DefaultAzureCredential.");
+
                     kernelBuilder.AddAzureOpenAIChatCompletion(
                         b.Configuration["AzureOpenDeployment"]!,
                         b.Configuration["AzureOpenAIEndpoint"]!,
