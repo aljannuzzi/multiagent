@@ -16,7 +16,6 @@ internal class Program
             o.MaximumParallelInvocationsPerClient = 2;
         }).AddAzureSignalR();
 
-
         builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
         WebApplication app = builder.Build();
 

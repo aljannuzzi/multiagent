@@ -54,7 +54,7 @@ internal partial class Program
         {
             try
             {
-                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={Constants.SignalR.Users.EndUser}", null, cts.Token);
+                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={Constants.SignalR.Users.Orchestrator}", null, cts.Token);
                 break;
             }
             catch (Exception e)
