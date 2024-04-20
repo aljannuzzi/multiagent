@@ -25,9 +25,14 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
             if (username.EndsWith("expert", StringComparison.InvariantCultureIgnoreCase) is true)
             {
                 _log.LogDebug("Expert {expertName} connected.", username);
-                await this.Clients.All.SendCoreAsync(Constants.SignalR.Functions.ExpertJoined, [username]).ConfigureAwait(false);
+                await this.Clients.User(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.ExpertJoined, username).ConfigureAwait(false);
 
                 _log.LogTrace("All clients notified.");
+            }
+            else if (username == Constants.SignalR.Users.Orchestrator)
+            {
+                _log.LogInformation("Orchestrator connected");
+                _orchestratorWaiter.Set();
             }
         }
     }
@@ -36,7 +41,8 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
     {
         if (this.Context.UserIdentifier?.EndsWith("Expert", StringComparison.InvariantCultureIgnoreCase) is true)
         {
-            await this.Clients.All.SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier).ConfigureAwait(false);
+            await this.Clients.Users([Constants.SignalR.Users.Orchestrator, Constants.SignalR.Users.EndUser])
+                .SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier).ConfigureAwait(false);
         }
     }
 
@@ -68,6 +74,19 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         }
     }
 
+    private static readonly ManualResetEventSlim _orchestratorWaiter = new(false);
+
     [HubMethodName(Constants.SignalR.Functions.Introduce)]
-    public Task IntroduceAsync(string name, string description) => this.Clients.Client(UserConnections[Constants.SignalR.Users.Orchestrator]).SendAsync(Constants.SignalR.Functions.Introduce, name, description);
+    public async Task IntroduceAsync(string name, string description)
+    {
+        _log.LogDebug("Introduction received: {expertName}", name);
+        if (!_orchestratorWaiter.IsSet)
+        {
+            _log.LogWarning("No orchestrator yet. Waiting...");
+        }
+
+        _orchestratorWaiter.Wait();
+
+        await this.Clients.Client(UserConnections[Constants.SignalR.Users.Orchestrator]).SendAsync(Constants.SignalR.Functions.Introduce, name, description);
+    }
 }

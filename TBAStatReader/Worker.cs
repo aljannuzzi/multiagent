@@ -17,7 +17,8 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available", expertName));
+        signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available.", expertName));
+        signalr.On<string>(Constants.SignalR.Functions.ExpertLeft, expertName => _log.LogDebug("{expertName} has disconnected.", expertName));
 
         _log.LogInformation("Connecting to server...");
 
