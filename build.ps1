@@ -43,43 +43,36 @@ if (-not $NoDocker)
     Start-Job -Name "Build Orchestrator" {
         param($secret)
 
-        $secret = 
         docker build -t orchestrator build/orchestrator --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate
     } -ArgumentList (GetSecretObject '1507d29c-61b1-4678-b23a-1562ed1a1abb')
 
     Start-Job -Name "Build Districts Agent" {
         param($secret)
 
-        $secret = 
-        docker build -t districtsagent build/districtsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate
+        docker build -t districtsagent build/districtsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate --build-arg TBA_API_KEY=$secret.TBA_API_KEY
     } -ArgumentList (GetSecretObject 'f724ee6c-8bf6-4796-904d-69463aba9287')
 
     Start-Job -Name "Build Events Agent" {
         param($secret)
 
-        $secret = 
-        docker build -t eventsagent build/eventsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate
+        docker build -t eventsagent build/eventsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate --build-arg TBA_API_KEY=$secret.TBA_API_KEY
     } -ArgumentList (GetSecretObject 'a74edbc7-6f1b-4f8f-ac34-6a5b90c653cd')
 
     Start-Job -Name "Build Matches Agent" {
         param($secret)
 
-        $secret = 
-        docker build -t matchesagent build/matchesagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate
+        docker build -t matchesagent build/matchesagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate --build-arg TBA_API_KEY=$secret.TBA_API_KEY
     } -ArgumentList (GetSecretObject 'f3b45348-9c0d-4b66-aa62-2228d0369fbe')
 
     Start-Job -Name "Build Teams Agent" {
         param($secret)
 
-        $secret = 
-        docker build -t teamsagent build/teamsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate
+        docker build -t teamsagent build/teamsagent --build-arg AZURE_OPENAI_KEY=$secret.AzureOpenAIKey --build-arg SignalREndpoint=http://hub:8080/api/negotiate --build-arg TBA_API_KEY=$secret.TBA_API_KEY
     } -ArgumentList (GetSecretObject '5631e549-948c-4903-be18-a06152c3600c')
     
     Get-Job | Wait-Job 
 
     Write-Output ""
-
-    # docker build -t tbaclient build/client
 }
 
 if (-not $NoCompose)
