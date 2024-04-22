@@ -109,6 +109,7 @@ internal partial class Program
             .AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
             {
                 ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
+                Temperature = 0.1,
                 ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
                 User = Environment.MachineName
             })
