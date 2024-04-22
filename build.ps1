@@ -27,7 +27,7 @@ if (-not $NoBuild)
     Start-Job -Name "Build Matches_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Matches_SignalR\Matches_SignalR.csproj -o $root\build\matchesagent } -ArgumentList $PSScriptRoot
     Start-Job -Name "Build Teams_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Teams_SignalR\Teams_SignalR.csproj -o $root\build\teamsagent } -ArgumentList $PSScriptRoot
     
-    Get-Job | Wait-Job | Remove-Job
+    Get-Job | Wait-Job #| Remove-Job
 
     Write-Output ""
 }
