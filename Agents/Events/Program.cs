@@ -39,6 +39,7 @@ IHost host = new HostBuilder()
         services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
         {
             ChatSystemPrompt = Environment.GetEnvironmentVariable("SystemPrompt") ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
+            Temperature = 0.1,
             ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
             User = Environment.MachineName
         });
