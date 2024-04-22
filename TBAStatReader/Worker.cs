@@ -1,6 +1,7 @@
 ﻿namespace TBAStatReader;
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -48,12 +49,16 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
                 break;
             }
 
+            Stopwatch timer = Stopwatch.StartNew();
+
             spinnerCancelToken = new();
             combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
             Task<string> ans = signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
 
             Task a = await Task.WhenAny(ans, Task.Delay(TimeSpan.FromSeconds(int.Parse(appConfig["ExpertWaitTimeSeconds"] ?? "10")), cancellationToken));
+            timer.Stop();
+
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
             if (a == ans)
@@ -64,6 +69,8 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
             {
                 Console.WriteLine("Looks like the Expert is stumped! Try another question.");
             }
+
+            _log.LogInformation("Time to answer: {tta}", timer.Elapsed);
         } while (!cancellationToken.IsCancellationRequested);
     }
 
