@@ -82,5 +82,5 @@ if (-not $NoDocker)
 if (-not $NoCompose)
 {
     Write-Output "Starting Composing..."
-    docker compose up -d
+    docker compose up -d --no-build
 }
