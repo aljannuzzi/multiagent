@@ -1,6 +1,7 @@
 ﻿namespace TBAStatReader;
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,6 +28,7 @@ internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory logge
 
             CircularCharArray progress = CircularCharArray.ProgressSpinner;
 
+            Stopwatch timer = Stopwatch.StartNew();
             Task<HttpResponseMessage> response = _client.PostAsync("api/messages", new StringContent(question), cancellationToken);
             while (!response.IsCompleted)
             {
@@ -40,7 +42,9 @@ internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory logge
             responseResult.EnsureSuccessStatusCode();
 
             var responseString = await responseResult.Content.ReadAsStringAsync(cancellationToken);
+            timer.Stop();
             Console.WriteLine(responseString);
+            _log.LogInformation("Time to answer: {tta}", timer.Elapsed);
 
         } while (!cancellationToken.IsCancellationRequested);
     }
