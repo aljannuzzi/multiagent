@@ -35,7 +35,7 @@ internal class Worker(IHttpClientFactory httpClientFactory, ILoggerFactory logge
                 Console.Write(progress.Next());
                 Console.CursorLeft--;
 
-                await Task.Delay(100);
+                await Task.Delay(100, cancellationToken);
             }
 
             HttpResponseMessage responseResult = await response;
