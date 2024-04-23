@@ -78,7 +78,9 @@ internal partial class Program
             return;
         }
 
-        IHubConnectionBuilder hubBuilder = new HubConnectionBuilder()
+        ArgumentNullException.ThrowIfNull(connInfo);
+
+        HubConnection hubConn = new HubConnectionBuilder()
             .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
             .ConfigureLogging(lb => lb
                 .AddConfiguration(b.Configuration.GetSection("Logging"))
@@ -88,8 +90,10 @@ internal partial class Program
                     o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
                     o.IncludeScopes = true;
                 })
-            ).WithAutomaticReconnect();
-        b.Services.AddSingleton(hubBuilder.Build());
+            ).WithAutomaticReconnect()
+            .Build();
+
+        b.Services.AddSingleton(hubConn);
 
         //b.Services.AddHttpClient("Orchestrator", (sp, c) =>
         //    {

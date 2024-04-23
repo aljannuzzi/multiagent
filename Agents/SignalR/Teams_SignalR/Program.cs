@@ -90,6 +90,8 @@ internal partial class Program
             return;
         }
 
+        ArgumentNullException.ThrowIfNull(connInfo);
+
         HubConnection hubConn = new HubConnectionBuilder()
             .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
             .ConfigureLogging(lb =>
