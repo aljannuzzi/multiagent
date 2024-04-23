@@ -17,7 +17,12 @@ using TBAAPI.V3Client.Client;
 
 IHost host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
-    .ConfigureServices(services =>
+    .ConfigureAppConfiguration((ctx, config) =>
+    {
+        config.AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile($@"appsettings.{ctx.HostingEnvironment.EnvironmentName}.json", optional: true);
+    })
+    .ConfigureServices((ctx, services) =>
     {
         services.AddApplicationInsightsTelemetryWorkerService()
             .ConfigureFunctionsApplicationInsights()
@@ -25,21 +30,12 @@ IHost host = new HostBuilder()
             .AddHttpClient("AzureOpenAi").AddHttpMessageHandler<DebugHttpHandler>();
 
         services.AddLogging(lb =>
-        {
-            lb.SetMinimumLevel(LogLevel.Trace)
-                .AddFilter("Microsoft.SemanticKernel", LogLevel.Trace)
-                .AddFilter("Microsoft.AspNetCore", LogLevel.None)
-                .AddFilter("Microsoft.Hosting", LogLevel.None)
-                .AddFilter("Microsoft.Extensions.Hosting", LogLevel.None)
-                .AddFilter("Microsoft.Extensions.Http", LogLevel.None)
-                .AddFilter("System.Net.Http.HttpClient.AzureOpenAi", LogLevel.None)
+            lb.AddConfiguration(ctx.Configuration.GetSection("Logging"))
                 .AddSimpleConsole(o =>
                 {
                     o.SingleLine = true;
-                    o.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
                     o.IncludeScopes = true;
-                });
-        });
+                }));
 
         services.AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
         {

@@ -8,15 +8,33 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 
-public class Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Threads> Log)
+public class Threads
 {
+    private readonly Kernel sk;
+    private readonly PromptExecutionSettings promptSettings;
+    private readonly ILogger<Threads> log;
+
+    public Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<Threads> Log)
+    {
+        this.sk = sk;
+        this.promptSettings = promptSettings;
+        log = Log;
+
+        log.LogCritical("crit");
+        log.LogError("err");
+        log.LogWarning("warn");
+        log.LogInformation("info");
+        log.LogDebug("debug");
+        log.LogTrace("trace");
+    }
+
     [Function("threads")]
     public async Task<IActionResult> RunAsync([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequest req, CancellationToken cancellationToken)
     {
         using var sr = new StreamReader(req.Body);
         var prompt = await sr.ReadToEndAsync(cancellationToken);
 
-        Log.LogDebug("Handling prompt: {userPrompt}", prompt);
+        log.LogDebug("Handling prompt: {userPrompt}", prompt);
 
         do
         {
@@ -25,7 +43,7 @@ public class Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<
                 FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings), cancellationToken: cancellationToken);
 
                 var funcResult = new OkObjectResult(promptResult.ToString()) { ContentTypes = ["application/json"] };
-                Log.LogDebug("Function Returning: {result}", funcResult.ToJsonDocument().RootElement);
+                log.LogDebug("Function Returning: {result}", funcResult.ToJsonDocument().RootElement);
 
                 return funcResult;
             }
@@ -36,7 +54,7 @@ public class Threads(Kernel sk, PromptExecutionSettings promptSettings, ILogger<
                     Azure.Response? resp = rex.GetRawResponse();
                     if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
                     {
-                        Log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
+                        log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
                         await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime)), cancellationToken).ConfigureAwait(false);
                     }
                     else

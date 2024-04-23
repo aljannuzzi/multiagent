@@ -20,7 +20,8 @@ public partial class TeamApi
     /// <returns>A list of teams that match the JMESPath expression.</returns>
     [KernelFunction, Description("Searches for teams based on a JMESPath expression.")]
     [return: Description("A list of teams that match the JMESPath expression.")]
-    public async Task<List<Team>> SearchTeamsAsync([Description("The JMESPath expression used to filter the teams.")] string jmesPathExpression)
+    public async Task<List<Team>> SearchTeamsAsync([Description("The query used to filter a JSON document with a single `teams` array of Team objects. Must be a valid JMESPath expression. Use lower-case strings for literals when searching, all literal values must be surrounded in single quotes (')")] string jmesPathExpression)
+
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
 
@@ -50,7 +51,8 @@ public partial class TeamApi
     [return: Description("A list of teams that match the JMESPath expression.")]
     public async Task<List<Team>> SearchDistrictTeamsAsync(
         [Description("The key of the district to search within.")] string districtKey,
-        [Description("The JMESPath expression used to filter the teams.")] string jmesPathExpression)
+        [Description("The query used to filter a JSON document with a single `teams` array of Team objects. Must be a valid JMESPath expression. Use lower-case strings for literals when searching, all literal values must be surrounded in single quotes (')")] string jmesPathExpression)
+
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
 
