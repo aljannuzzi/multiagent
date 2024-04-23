@@ -72,7 +72,7 @@ internal partial class Program
 
         if (hubNegotiateResponse is null)
         {
-            negotiationLogger.LogCritical("Unable to connect to server. Exiting.");
+            negotiationLogger.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", b.Configuration["SignalREndpoint"]);
             return;
         }
 
@@ -86,7 +86,7 @@ internal partial class Program
         catch (Exception ex)
         {
             negotiationLogger.LogDebug(ex, "Error parsing negotiation response");
-            negotiationLogger.LogCritical("Unable to connect to server. Exiting.");
+            negotiationLogger.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", b.Configuration["SignalREndpoint"]);
             return;
         }
 
