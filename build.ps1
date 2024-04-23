@@ -1,7 +1,14 @@
+enum DeploymentType
+{
+    Kubernetes
+    Docker
+    None
+}
+
 param(
     [switch]$NoBuild = $false,
     [switch]$NoDocker = $false,
-    [switch]$NoCompose = $false
+    [DeploymentType]$Deploy = [DeploymentType]::None
 )
 
 function GetSecretObject
@@ -79,8 +86,12 @@ if (-not $NoDocker)
     Write-Output ""
 }
 
-if (-not $NoCompose)
+if ($Deploy -eq [DeploymentType]::Kubernetes)
 {
-    Write-Output "Starting Composing..."
-    docker compose up -d --no-build
+    Write-Output "Deploying to Kubernetes..."
+    kubectl apply -f $PSScriptRoot\k8s.deploy.yml
+}
+elseif ($Deploy -eq [DeploymentType]::Docker) {
+    Write-Output "Deploying via Docker Compose..."
+    docker compose up -d --no-build -f $PSScriptRoot\compose.yml
 }
