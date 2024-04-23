@@ -1,4 +1,6 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
+RUN apt-get update \
+    && apt-get upgrade -y
 USER app
 
 ARG AZURE_OPENAI_KEY
