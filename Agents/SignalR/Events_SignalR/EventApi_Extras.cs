@@ -42,7 +42,7 @@ public partial class EventApi
         }
 
         JsonDocument results = EmptyJsonDocument;
-        List<Event> teams = await GetEventsByYearAsync(year);
+        List<Event>? teams = await GetEventsByYearAsync(year).ConfigureAwait(false);
         if (teams?.Count is not null and not 0)
         {
             JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { teams }, JsonSerialzationOptions.Default);

@@ -21,10 +21,10 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await receiver.StartAsync(cancellationToken);
+        await receiver.StartAsync(cancellationToken).ConfigureAwait(false);
 
         _log.LogDebug("Introducing myself to the orchestrator...");
-        await receiver.SendAsync(Constants.SignalR.Functions.Introduce, appConfig.GetRequiredSection("ExpertDefinition")["Name"], appConfig.GetRequiredSection("ExpertDefinition")["Description"], cancellationToken: cancellationToken);
+        await receiver.SendAsync(Constants.SignalR.Functions.Introduce, appConfig.GetRequiredSection("ExpertDefinition")["Name"], appConfig.GetRequiredSection("ExpertDefinition")["Description"], cancellationToken: cancellationToken).ConfigureAwait(false);
 
         _log.LogInformation("Awaiting question from orchestrator...");
 
@@ -41,7 +41,7 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
                     string response;
                     try
                     {
-                        FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings), cancellationToken: cancellationToken);
+                        FunctionResult promptResult = await sk.InvokePromptAsync(prompt, new(promptSettings), cancellationToken: cancellationToken).ConfigureAwait(false);
 
                         _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 

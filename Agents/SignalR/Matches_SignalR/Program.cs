@@ -59,13 +59,13 @@ internal partial class Program
         {
             try
             {
-                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={b.Configuration.GetSection("ExpertDefinition")["Name"]!}", null, cts.Token);
+                hubNegotiateResponse = await client.PostAsync($@"{b.Configuration["SignalREndpoint"]}?userid={b.Configuration.GetSection("ExpertDefinition")["Name"]!}", null, cts.Token).ConfigureAwait(false);
                 break;
             }
             catch (Exception e)
             {
                 negotiationLogger.LogDebug(e, $@"Negotiation failed");
-                await Task.Delay(1000);
+                await Task.Delay(1000).ConfigureAwait(false);
             }
         }
 
@@ -80,7 +80,7 @@ internal partial class Program
         Models.SignalR.ConnectionInfo? connInfo;
         try
         {
-            connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>();
+            connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -148,7 +148,7 @@ internal partial class Program
                 return kernel;
             });
 
-        await b.Build().RunAsync(cts.Token);
+        await b.Build().RunAsync(cts.Token).ConfigureAwait(false);
 
     }
 }

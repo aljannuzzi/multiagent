@@ -42,7 +42,7 @@ public partial class TeamApi
         List<JsonDocument> results = [];
         for (var i = 0; ; i++)
         {
-            List<Team> teams = await GetTeamsAsync(i);
+            List<Team>? teams = await GetTeamsAsync(i).ConfigureAwait(false);
             if (teams?.Count is null or 0)
             {
                 break;
@@ -81,7 +81,7 @@ public partial class TeamApi
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
 
-        List<Team> matches = await GetDistrictTeamsAsync(districtKey);
+        List<Team>? matches = await GetDistrictTeamsAsync(districtKey).ConfigureAwait(false);
 
         JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(JsonSerializer.SerializeToElement(matches, JsonSerialzationOptions.Default), jmesPathExpression);
         matches = JsonSerializer.Deserialize<List<Team>>(filteredTeams, JsonSerialzationOptions.Default) ?? [];

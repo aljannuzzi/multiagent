@@ -37,7 +37,7 @@ public partial class MatchApi
         }
 
         JsonDocument retVal = EmptyJsonDocument;
-        List<Match> matches = await GetTeamMatchesByYearAsync(teamKey, year);
+        List<Match>? matches = await GetTeamMatchesByYearAsync(teamKey, year).ConfigureAwait(false);
         if (matches?.Count is not null and not 0)
         {
             JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { matches }, JsonSerialzationOptions.Default);
@@ -77,7 +77,7 @@ public partial class MatchApi
         }
 
         JsonDocument retVal = EmptyJsonDocument;
-        List<Match> matches = await GetEventMatchesAsync(eventKey);
+        List<Match>? matches = await GetEventMatchesAsync(eventKey).ConfigureAwait(false);
         if (matches?.Count is not null and not 0)
         {
             JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { matches }, JsonSerialzationOptions.Default);
