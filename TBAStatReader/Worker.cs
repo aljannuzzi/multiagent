@@ -63,7 +63,7 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
             Console.CursorLeft = 0;
             if (a == ans)
             {
-                Console.WriteLine(ans.Result);
+                Console.WriteLine(await ans);
             }
             else
             {
