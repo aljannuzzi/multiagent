@@ -17,7 +17,7 @@ using TBAAPI.V3Client.Client;
 
 internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILoggerFactory loggerFactory, HubConnection receiver, IConfiguration appConfig) : IHostedService
 {
-    private readonly ILogger _log = loggerFactory.CreateLogger(appConfig.GetRequiredSection("ExpertDefinition")["Name"]);
+    private readonly ILogger _log = loggerFactory.CreateLogger(appConfig.GetRequiredSection("ExpertDefinition")["Name"] ?? throw new ArgumentNullException("Missing ExpertDefinition.Name setting"));
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
