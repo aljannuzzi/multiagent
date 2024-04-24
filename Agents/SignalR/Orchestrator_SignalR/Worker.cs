@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Common;
+using Common.Extensions;
 
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -30,6 +31,7 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 
     private void AddExpert(string name, string description, CancellationToken cancellationToken)
     {
+        using var scope = _log.CreateMethodScope();
         _log.LogDebug("Adding {expertName} to panel...", name);
         kernel.ImportPluginFromFunctions(name, [kernel.CreateFunctionFromMethod((string prompt) => signalr.InvokeAsync<string>(Constants.SignalR.Functions.AskExpert, name, prompt, cancellationToken),
             name, description,
@@ -42,6 +44,7 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 
     private void RemoveExpert(string name)
     {
+        using var scope = _log.CreateMethodScope();
         _log.LogDebug("Removing {expertName} from panel...", name);
 
         kernel.Plugins.Remove(kernel.Plugins[name]);
@@ -53,6 +56,8 @@ internal class Worker(Kernel kernel, PromptExecutionSettings promptSettings, ILo
 
     private async Task<string> AskExpertsAsync(string question)
     {
+        using var scope = _log.CreateMethodScope();
+
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
         kernel.FunctionFilters.Add(new DebugFunctionFilter());
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Common;
+using Common.Extensions;
 
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
@@ -30,6 +31,9 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
 
         receiver.On<string, string>(Constants.SignalR.Functions.GetAnswer, async prompt =>
         {
+            using var scope = _log.CreateMethodScope(Constants.SignalR.Functions.GetAnswer);
+            _log.LogDebug("Prompt received from orchestrator: {prompt}", prompt);
+
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
             sk.FunctionFilters.Add(new DebugFunctionFilter());
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.

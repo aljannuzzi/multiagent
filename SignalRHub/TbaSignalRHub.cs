@@ -3,6 +3,7 @@
 using System.Collections.Concurrent;
 
 using Common;
+using Common.Extensions;
 
 using Microsoft.AspNetCore.SignalR;
 
@@ -13,6 +14,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
     public override async Task OnConnectedAsync()
     {
+        using var scope = _log.CreateMethodScope();
         var username = this.Context.UserIdentifier;
         if (string.IsNullOrWhiteSpace(username))
         {
@@ -39,6 +41,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        using var scope = _log.CreateMethodScope();
         if (this.Context.UserIdentifier?.EndsWith("Expert", StringComparison.InvariantCultureIgnoreCase) is true)
         {
             await this.Clients.Users([Constants.SignalR.Users.Orchestrator, Constants.SignalR.Users.EndUser])
@@ -49,6 +52,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
     [HubMethodName(Constants.SignalR.Functions.GetAnswer)]
     public async Task<string> GetAnswerAsync(string question)
     {
+        using var scope = _log.CreateMethodScope();
         if (UserConnections.TryGetValue(Constants.SignalR.Users.Orchestrator, out var orchConn) && !string.IsNullOrWhiteSpace(orchConn))
         {
             return await this.Clients.Client(orchConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
@@ -63,6 +67,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
     [HubMethodName(Constants.SignalR.Functions.AskExpert)]
     public async Task<string> AskExpertAsync(string expertName, string question)
     {
+        using var scope = _log.CreateMethodScope();
         if (UserConnections.TryGetValue(expertName, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
         {
             return await this.Clients.Client(expertConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
@@ -79,6 +84,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
     [HubMethodName(Constants.SignalR.Functions.Introduce)]
     public async Task IntroduceAsync(string name, string description)
     {
+        using var scope = _log.CreateMethodScope();
         _log.LogDebug("Introduction received: {expertName}", name);
         if (!_orchestratorWaiter.IsSet)
         {
@@ -88,5 +94,6 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         _orchestratorWaiter.Wait();
 
         await this.Clients.Client(UserConnections[Constants.SignalR.Users.Orchestrator]).SendAsync(Constants.SignalR.Functions.Introduce, name, description);
+        _log.LogDebug("Introduction for {expertName} sent to Orchestrator", name);
     }
 }
