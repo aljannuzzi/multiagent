@@ -110,7 +110,7 @@ internal partial class Program
             .AddSingleton(hubConn)
             .AddSingleton<PromptExecutionSettings>(new OpenAIPromptExecutionSettings
             {
-                ChatSystemPrompt = b.Configuration["SystemPrompt"] ?? throw new ArgumentNullException("SystemPrompt", "Missing SystemPrompt environment variable"),
+                ChatSystemPrompt = Throws.IfNullOrWhiteSpace(b.Configuration["SystemPrompt"], "Missing SystemPrompt environment variable"),
                 Temperature = 0.1,
                 ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
                 User = Environment.MachineName
@@ -122,11 +122,11 @@ internal partial class Program
 
                 IKernelBuilder kernelBuilder = Kernel.CreateBuilder();
                 kernelBuilder.Services.AddSingleton(loggerFactory);
-                kernelBuilder.Plugins.AddFromType<Calendar>();
                 kernelBuilder.Plugins.AddFromObject(new TeamApi(new Configuration(new Dictionary<string, string>(),
-                    new Dictionary<string, string>() { { "X-TBA-Auth-Key", b.Configuration["TBA_API_KEY"] ?? throw new ArgumentNullException("TBA_API_KEY", "Missing TBA_API_KEY environment variable") } },
+                    new Dictionary<string, string>() { { "X-TBA-Auth-Key", Throws.IfNullOrWhiteSpace(b.Configuration["TBA_API_KEY"], "Missing TBA_API_KEY environment variable") } },
                     new Dictionary<string, string>()))
                 { Log = loggerFactory.CreateLogger(nameof(TeamApi)) });
+                kernelBuilder.Plugins.AddFromType<Calendar>();
 
                 if (b.Configuration["AzureOpenAIKey"] is not null)
                 {
