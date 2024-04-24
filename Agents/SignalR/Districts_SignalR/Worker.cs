@@ -22,6 +22,8 @@ internal class Worker(Kernel sk, PromptExecutionSettings promptSettings, ILogger
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        AgentDefinition.OutputRegisteredSkFunctions(sk);
+
         await receiver.StartAsync(cancellationToken);
 
         _log.LogDebug("Introducing myself to the orchestrator...");
