@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Common;
 using Common.Extensions;
 
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -17,8 +16,6 @@ using Microsoft.VisualStudio.Threading;
 internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory, IHttpClientFactory httpClientFactory, Kernel kernel, PromptExecutionSettings promptSettings) : Expert(configuration, loggerFactory, httpClientFactory, kernel, promptSettings)
 {
     protected override bool PerformsIntroduction { get; } = false;
-
-    protected override Task<string> GetAnswerInternalAsync(string prompt, CancellationToken cancellationToken) => base.GetAnswerInternalAsync(prompt, cancellationToken);
 
     protected override async Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
     {
@@ -32,7 +29,7 @@ internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory,
     {
         using IDisposable scope = _log.CreateMethodScope();
         _log.LogDebug("Adding {expertName} to panel...", name);
-        _kernel.ImportPluginFromFunctions(name, [_kernel.CreateFunctionFromMethod((string prompt) => this.SignalR!.InvokeAsync<string>(Constants.SignalR.Functions.AskExpert, name, prompt, cancellationToken),
+        _kernel.ImportPluginFromFunctions(name, [_kernel.CreateFunctionFromMethod((string prompt) => this.SignalR!.StreamAsync<string>(Constants.SignalR.Functions.AskExpertStreaming, name, prompt, cancellationToken),
             name, description,
             [new("prompt") { IsRequired = true, ParameterType = typeof(string) }],
             new() { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })]

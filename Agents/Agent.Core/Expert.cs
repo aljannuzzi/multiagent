@@ -2,8 +2,10 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 using Common.Extensions;
@@ -65,6 +67,7 @@ public abstract class Expert : IHostedService
     {
         _log.LogInformation("Awaiting question...");
         this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, s => GetAnswerAsync(s, cancellationToken));
+        this.SignalR.On<string, ChannelReader<string>>(Constants.SignalR.Functions.GetStreamedAnswer, (s) => GetAnswerStreaming(s, cancellationToken));
 
         return Task.CompletedTask;
     }
@@ -148,6 +151,27 @@ public abstract class Expert : IHostedService
         return GetAnswerInternalAsync(prompt, cancellationToken);
     }
 
+    protected ChannelReader<string> GetAnswerStreaming(string prompt, CancellationToken cancellationToken)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+
+        Channel<string> channel = Channel.CreateUnbounded<string>();
+        _ = populateChannel(channel.Writer, cancellationToken).ConfigureAwait(false);
+
+        return channel.Reader;
+
+        static async Task populateChannel(ChannelWriter<string> output, CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < 100 && !cancellationToken.IsCancellationRequested; i++)
+            {
+                await output.WriteAsync($"|{i}Hello{i}|");
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+        }
+
+        //return GetAnswerInternalStreamingAsync(prompt, cancellationToken);
+    }
+
     protected virtual Task<string> GetAnswerInternalAsync(string prompt, CancellationToken cancellationToken)
     {
         return ExecuteWithThrottleHandlingAsync(async () =>
@@ -170,6 +194,15 @@ public abstract class Expert : IHostedService
 
             return response;
         }, cancellationToken);
+    }
+
+    protected virtual async IAsyncEnumerable<string> GetAnswerInternalStreamingAsync(string prompt, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var promptResult = _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings), cancellationToken: cancellationToken).ConfigureAwait(false);
+        await foreach (var token in promptResult)
+        {
+            yield return token.ToString();
+        }
     }
 
     protected async Task<T> ExecuteWithThrottleHandlingAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken, int maxRetries = 10)

@@ -52,6 +52,10 @@ public static class Constants
             public const string ExpertLeft = nameof(ExpertLeft);
 
             public const string Reintroduce = nameof(Reintroduce);
+
+            public const string GetStreamedAnswer = nameof(GetStreamedAnswer);
+
+            public const string AskExpertStreaming = nameof(AskExpertStreaming);
         }
     }
 }

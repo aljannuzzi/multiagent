@@ -54,21 +54,18 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
             spinnerCancelToken = new();
             combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
-            Task<string> ans = signalr.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
+            var ans = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetStreamedAnswer, question, cancellationToken);
 
-            Task a = await Task.WhenAny(ans, Task.Delay(TimeSpan.FromSeconds(int.Parse(appConfig["ExpertWaitTimeSeconds"] ?? "10")), cancellationToken));
-            timer.Stop();
-
+            await ans.WaitToReadAsync(cancellationToken);
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
-            if (a == ans)
+            do
             {
-                Console.WriteLine(await ans);
-            }
-            else
-            {
-                Console.WriteLine("Looks like the Expert is stumped! Try another question.");
-            }
+                while (ans.TryRead(out var token))
+                {
+                    Console.Write(token);
+                }
+            } while (await ans.WaitToReadAsync(cancellationToken));
 
             _log.LogInformation("Time to answer: {tta}", timer.Elapsed);
         } while (!cancellationToken.IsCancellationRequested);

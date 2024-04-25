@@ -1,6 +1,7 @@
 ﻿namespace SignalRASPHub;
 
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 
 using Common;
 using Common.Extensions;
@@ -71,6 +72,73 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         }
     }
 
+    [HubMethodName(Constants.SignalR.Functions.GetStreamedAnswer)]
+    public ChannelReader<string> GetStreamedAnswer(string question, CancellationToken cancellationToken)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+        var channel = Channel.CreateUnbounded<string>();
+        if (UserConnections.TryGetValue(Constants.SignalR.Users.Orchestrator, out var orchConn) && !string.IsNullOrWhiteSpace(orchConn))
+        {
+            _ = populateChannel(question, channel, orchConn, cancellationToken).ConfigureAwait(false);
+
+            return channel.Reader;
+        }
+        else
+        {
+            _log.LogError("Unable to send GetAnswer request to orchestrator; connection not found!");
+            channel.Writer.TryWrite("ERROR: Orchestrator not connected!");
+            channel.Writer.Complete();
+        }
+
+        return channel.Reader;
+
+        async Task populateChannel(string question, Channel<string> channel, string orchConn, CancellationToken cancellationToken)
+        {
+            var reader = await this.Clients.Client(orchConn).InvokeAsync<ChannelReader<string>>(Constants.SignalR.Functions.GetStreamedAnswer, question, cancellationToken).ConfigureAwait(false);
+            while (await reader.WaitToReadAsync(cancellationToken))
+            {
+                while (reader.TryRead(out var s))
+                {
+                    await channel.Writer.WriteAsync(s, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+
+    [HubMethodName(nameof(ProvideStreamedAnswer))]
+    public async IAsyncEnumerable<string> ProvideStreamedAnswer(string connId, ChannelReader<string> stream, CancellationToken cancellationToken)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+        var channel = Channel.CreateUnbounded<string>();
+        if (UserConnections.TryGetValue(Constants.SignalR.Users.Orchestrator, out var orchConn) && !string.IsNullOrWhiteSpace(orchConn))
+        {
+            _ = populateChannel(question, channel, orchConn, cancellationToken).ConfigureAwait(false);
+
+            return channel.Reader;
+        }
+        else
+        {
+            _log.LogError("Unable to send GetAnswer request to orchestrator; connection not found!");
+            channel.Writer.TryWrite("ERROR: Orchestrator not connected!");
+            channel.Writer.Complete();
+        }
+
+        return channel.Reader;
+
+        async Task populateChannel(string question, Channel<string> channel, string orchConn, CancellationToken cancellationToken)
+        {
+            var reader = await this.Clients.Client(orchConn).InvokeAsync<ChannelReader<string>>(Constants.SignalR.Functions.GetStreamedAnswer, question, cancellationToken).ConfigureAwait(false);
+            while (await reader.WaitToReadAsync(cancellationToken))
+            {
+                while (reader.TryRead(out var s))
+                {
+                    await channel.Writer.WriteAsync(s, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
     [HubMethodName(Constants.SignalR.Functions.AskExpert)]
     public async Task<string> AskExpertAsync(string expertName, string question)
     {
@@ -83,6 +151,24 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         {
             _log.LogError("Unable to send GetAnswer request to {expertName}; connection not found!", expertName);
             return $@"ERROR: Expert '{expertName}' is not here!";
+        }
+    }
+
+    [HubMethodName(Constants.SignalR.Functions.AskExpertStreaming)]
+    public async IAsyncEnumerable<string> AskExpertStreamingAsync(string expertName, string question)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+        if (UserConnections.TryGetValue(expertName, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
+        {
+            await foreach (var s in (await this.Clients.Client(expertConn).InvokeAsync<IAsyncEnumerable<string>>(Constants.SignalR.Functions.GetStreamedAnswer, question, default)))
+            {
+                yield return s;
+            }
+        }
+        else
+        {
+            _log.LogError("Unable to send GetAnswer request to {expertName}; connection not found!", expertName);
+            yield return $@"ERROR: Expert '{expertName}' is not here!";
         }
     }
 

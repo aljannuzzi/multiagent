@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 using Common;
 
 using Microsoft.AspNetCore.SignalR;
@@ -14,7 +17,15 @@ internal class Program
         builder.Services.AddSignalR(o =>
         {
             o.MaximumParallelInvocationsPerClient = 2;
-        }).AddAzureSignalR();
+        })
+            .AddJsonProtocol(o =>
+            {
+                o.PayloadSerializerOptions = new JsonSerializerOptions
+                {
+                    Converters = { new SynchronousIAsyncEnumerableConverter() },
+                };
+            })
+            .AddAzureSignalR();
 
         builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
         WebApplication app = builder.Build();
@@ -34,5 +45,11 @@ internal class Program
 
         app.MapHub<TbaSignalRHub>("/api");
         app.Run();
+    }
+
+    private class SynchronousIAsyncEnumerableConverter : JsonConverter<IAsyncEnumerable<string>>
+    {
+        public override IAsyncEnumerable<string>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotImplementedException();
+        public override void Write(Utf8JsonWriter writer, IAsyncEnumerable<string> value, JsonSerializerOptions options) => throw new NotImplementedException();
     }
 }
