@@ -16,16 +16,11 @@
 		</Content>
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\Assistants\Assistants.csproj" />
-		<ProjectReference Include="..\..\..\Common\Common.csproj" />
-		<ProjectReference Include="..\..\..\Models\Models.csproj" />
+		<ProjectReference Include="..\..\Agent.Core\Agent.Core.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
 		<PackageReference Include="Microsoft.Azure.SignalR.Management" />
-		<PackageReference Include="Microsoft.Extensions.Hosting" />
 		<PackageReference Include="Microsoft.Extensions.Http" />
-		<PackageReference Include="Microsoft.SemanticKernel" />
 		<PackageReference Include="Microsoft.VisualStudio.Threading" />
 		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers">
 			<PrivateAssets>all</PrivateAssets>

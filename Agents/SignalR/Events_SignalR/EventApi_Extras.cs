@@ -10,13 +10,16 @@ using Microsoft.SemanticKernel;
 
 using Models.Json;
 
+using TBAAPI.V3Client.Client;
 using TBAAPI.V3Client.Model;
 
 public partial class EventApi
 {
-    internal ILogger? Log { get; set; }
+    private ILogger? Log { get; }
 
     private static readonly JsonDocument EmptyJsonDocument = JsonDocument.Parse("[]");
+
+    public EventApi(Configuration config, ILogger logger) : this(config) => this.Log = logger;
 
     /// <summary>
     /// Searches for teams based on a JMESPath expression.

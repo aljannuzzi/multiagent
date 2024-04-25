@@ -50,6 +50,8 @@ public static class Constants
             public const string ExpertJoined = nameof(ExpertJoined);
 
             public const string ExpertLeft = nameof(ExpertLeft);
+
+            public const string Reintroduce = nameof(Reintroduce);
         }
     }
 }
