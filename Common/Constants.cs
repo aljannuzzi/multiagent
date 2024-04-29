@@ -1,6 +1,11 @@
 ﻿namespace Common;
 public static class Constants
 {
+    public static class Token
+    {
+        public const string EndToken = @"!END!";
+    }
+
     public static class SignalR
     {
         public const string HubName = "TBASignalRHub";
@@ -53,9 +58,11 @@ public static class Constants
 
             public const string Reintroduce = nameof(Reintroduce);
 
-            public const string GetStreamedAnswer = nameof(GetStreamedAnswer);
+            public const string WriteToResponseStream = nameof(WriteToResponseStream);
 
-            public const string AskExpertStreaming = nameof(AskExpertStreaming);
+            public const string WriteChannelToResponseStream = nameof(WriteChannelToResponseStream);
+
+            public const string ListenToResponseStream = nameof(ListenToResponseStream);
         }
     }
 }

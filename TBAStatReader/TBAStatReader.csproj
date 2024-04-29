@@ -10,6 +10,9 @@
 		<Compile Remove="Extensions.cs" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Compile Include="..\Agents\Agent.Core\Extensions\SignalRExtensions.cs" Link="SignalRExtensions.cs" />
+	</ItemGroup>
+	<ItemGroup>
 		<Content Include="appsettings.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -30,5 +33,6 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="System.Linq.Async" />
 	</ItemGroup>
 </Project>

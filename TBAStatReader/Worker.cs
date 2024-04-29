@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Agent.Core.Extensions;
+
 using Common;
 
 using Microsoft.AspNetCore.SignalR.Client;
@@ -15,6 +17,8 @@ using Microsoft.Extensions.Logging;
 internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConfiguration appConfig) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
+
+    internal static bool WaitingForResponse = false;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -27,8 +31,7 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
 
         Console.WriteLine("Welcome to the TBA Chat bot! What would you like to know about FIRST competitions, past or present?");
 
-        CancellationTokenSource? spinnerCancelToken = null, combinedCancelToken = null;
-        async Task runSpinnerAsync(CancellationToken ct)
+        static async Task runSpinnerAsync(CancellationToken ct)
         {
             CircularCharArray progress = CircularCharArray.ProgressSpinner;
             while (!ct.IsCancellationRequested)
@@ -49,23 +52,30 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
                 break;
             }
 
-            Stopwatch timer = Stopwatch.StartNew();
+            var timer = Stopwatch.StartNew();
 
-            spinnerCancelToken = new();
-            combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
+            CancellationTokenSource spinnerCancelToken = new();
+            var combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
-            var ans = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetStreamedAnswer, question, cancellationToken);
 
-            await ans.WaitToReadAsync(cancellationToken);
-            await spinnerCancelToken.CancelAsync();
-            Console.CursorLeft = 0;
-            do
+            await signalr.SendAsync(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
+
+            var firstToken = true;
+            WaitingForResponse = true;
+            await foreach (var token in signalr.ListenForNewResponseAsync(Constants.SignalR.Users.Orchestrator, cancellationToken))
             {
-                while (ans.TryRead(out var token))
+                if (firstToken)
                 {
-                    Console.Write(token);
+                    await spinnerCancelToken.CancelAsync();
+                    Console.CursorLeft = 0;
+                    firstToken = false;
                 }
-            } while (await ans.WaitToReadAsync(cancellationToken));
+
+                Console.Write(token);
+            }
+
+            WaitingForResponse = false;
+            Console.WriteLine();
 
             _log.LogInformation("Time to answer: {tta}", timer.Elapsed);
         } while (!cancellationToken.IsCancellationRequested);

@@ -17,5 +17,6 @@
 		<PackageVersion Include="Microsoft.VisualStudio.Threading" Version="17.9.28" />
 		<PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.9.28" />
 		<PackageVersion Include="RestSharp" Version="106.15.0" />
+    <PackageVersion Include="System.Linq.Async" Version="6.0.1" />
 	</ItemGroup>
 </Project>

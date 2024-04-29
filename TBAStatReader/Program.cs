@@ -44,7 +44,7 @@ internal partial class Program
         var client = new HttpClient();
         HttpResponseMessage hubNegotiateResponse = new();
         ILogger negotiationLogger = loggerFactory.CreateLogger("negotiation");
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             try
             {
@@ -91,6 +91,7 @@ internal partial class Program
                     o.IncludeScopes = true;
                 })
             ).WithAutomaticReconnect()
+            .WithStatefulReconnect()
             .Build();
 
         b.Services.AddSingleton(hubConn);

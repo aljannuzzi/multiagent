@@ -24,7 +24,6 @@ public record AgentDefinition(string Name, string Description, Uri Endpoint)
                 else
                 {
                     Debug.WriteLine(output);
-
                 }
             }
         }
