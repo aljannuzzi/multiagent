@@ -9,11 +9,10 @@ using System.Threading.Tasks;
 using Common;
 
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConfiguration appConfig) : IHostedService
+internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHostedService
 {
     private readonly ILogger _log = loggerFactory.CreateLogger<Worker>();
 

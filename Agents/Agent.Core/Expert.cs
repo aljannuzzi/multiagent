@@ -119,7 +119,7 @@ public abstract class Expert : IHostedService
 
             try
             {
-                connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<Models.SignalR.ConnectionInfo>().ConfigureAwait(false);
+                connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<ConnectionInfo>(cancellationToken: cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -132,10 +132,7 @@ public abstract class Expert : IHostedService
         ArgumentNullException.ThrowIfNull(connInfo);
 
         IHubConnectionBuilder builder = new HubConnectionBuilder()
-            .WithUrl(connInfo.Url, o =>
-            {
-                o.AccessTokenProvider = connInfo.GetAccessToken;
-            })
+            .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
             .ConfigureLogging(lb =>
             {
                 lb.AddConfiguration(_config.GetSection("Logging"));

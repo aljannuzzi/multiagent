@@ -142,6 +142,6 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
         _log.LogDebug("{user} connected.", user);
 
-        return waitTask.Result;
+        return await waitTask;
     }
 }

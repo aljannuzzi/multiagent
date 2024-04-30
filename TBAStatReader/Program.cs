@@ -16,10 +16,10 @@ internal partial class Program
     private static async Task Main(string[] args)
     {
         var cts = new CancellationTokenSource();
-        Console.CancelKeyPress += async (_, e) =>
+        Console.CancelKeyPress += (_, e) =>
         {
+            cts.Cancel();
             e.Cancel = true;
-            await cts.CancelAsync().ConfigureAwait(false);
         };
 
         cts.Token.Register(() => Console.WriteLine("Cancellation requested. Exiting..."));

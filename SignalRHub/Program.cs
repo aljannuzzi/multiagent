@@ -12,10 +12,7 @@ internal class Program
 
         // Add services to the container.
         builder.Services
-            .AddSignalR(o =>
-            {
-                o.EnableDetailedErrors = true;
-            })
+            .AddSignalR(o => o.EnableDetailedErrors = true)
             .AddAzureSignalR();
 
         builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
