@@ -10,9 +10,6 @@
 		<Compile Remove="Extensions.cs" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Compile Include="..\Agents\Agent.Core\Extensions\SignalRExtensions.cs" Link="SignalRExtensions.cs" />
-	</ItemGroup>
-	<ItemGroup>
 		<Content Include="appsettings.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>

@@ -64,7 +64,14 @@ public abstract class Expert : IHostedService
     protected virtual Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
     {
         _log.LogInformation("Awaiting question...");
-        this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, s => GetAnswerAsync(s, cancellationToken));
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.SendAnswerBack, (id, prompt) =>
+        {
+            _log.LogTrace("SendAnswerBack invoked");
+            _kernel.Data["channelId"] = id;
+            return this.SignalR.SendAsync(Constants.SignalR.Functions.SendAnswerBack, id, _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings)).Select(i => i.ToString()));
+        });
+
+        _log.LogDebug("Subscribed to {signalrFunction}", Constants.SignalR.Functions.SendAnswerBack);
 
         return Task.CompletedTask;
     }
@@ -125,7 +132,10 @@ public abstract class Expert : IHostedService
         ArgumentNullException.ThrowIfNull(connInfo);
 
         IHubConnectionBuilder builder = new HubConnectionBuilder()
-            .WithUrl(connInfo.Url, o => o.AccessTokenProvider = connInfo.GetAccessToken)
+            .WithUrl(connInfo.Url, o =>
+            {
+                o.AccessTokenProvider = connInfo.GetAccessToken;
+            })
             .ConfigureLogging(lb =>
             {
                 lb.AddConfiguration(_config.GetSection("Logging"));
@@ -136,6 +146,9 @@ public abstract class Expert : IHostedService
                     o.IncludeScopes = true;
                 });
             }).WithAutomaticReconnect()
+#if DEBUG
+            .WithServerTimeout(TimeSpan.FromMinutes(5))
+#endif
             .WithStatefulReconnect();
 
         this.SignalR = builder.Build();
@@ -207,6 +220,50 @@ public abstract class Expert : IHostedService
 
         _log.LogError(lastException!, "Max retries exceeded.");
         throw lastException!;
+    }
+
+    protected async Task ExecuteWithThrottleHandlingAsync(Func<Task> operation, CancellationToken cancellationToken, int maxRetries = 10)
+    {
+        Exception? lastException = null;
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                await operation();
+                return;
+            }
+            catch (HttpOperationException ex)
+            {
+                lastException = ex;
+                if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests && ex.InnerException is Azure.RequestFailedException rex)
+                {
+                    Azure.Response? resp = rex.GetRawResponse();
+                    if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
+                    {
+                        _log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
+                        await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime)), cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        if (lastException is not null)
+        {
+            _log.LogError(lastException, "Max retries exceeded.");
+            throw lastException;
+        }
+        else
+        {
+            _log.LogError("Max retries exceeded.");
+        }
     }
 
     public virtual Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

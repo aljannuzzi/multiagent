@@ -1,4 +1,4 @@
-﻿namespace TBAStatReader;
+﻿namespace Matches_SignalR;
 
 using Common;
 

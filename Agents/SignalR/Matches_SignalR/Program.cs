@@ -1,12 +1,10 @@
-﻿namespace Teams_SignalR;
+﻿namespace Matches_SignalR;
 
 using Common.Extensions;
 
 using Microsoft.Extensions.Hosting;
 
 using TBAAPI.V3Client.Api;
-
-using TBAStatReader;
 
 internal partial class Program
 {

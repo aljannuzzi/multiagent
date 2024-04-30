@@ -2,10 +2,9 @@
 
 using System;
 using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Agent.Core.Extensions;
 
 using Common;
 
@@ -22,6 +21,7 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available.", expertName));
         signalr.On<string>(Constants.SignalR.Functions.ExpertLeft, expertName => _log.LogDebug("{expertName} has disconnected.", expertName));
 
@@ -58,28 +58,35 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr, IConf
             var combinedCancelToken = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, spinnerCancelToken.Token);
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
 
-            await signalr.SendAsync(Constants.SignalR.Functions.GetAnswer, question, cancellationToken);
-
-            var firstToken = true;
             WaitingForResponse = true;
-            await foreach (var token in signalr.ListenForNewResponseAsync(Constants.SignalR.Users.Orchestrator, cancellationToken))
-            {
-                if (firstToken)
-                {
-                    await spinnerCancelToken.CancelAsync();
-                    Console.CursorLeft = 0;
-                    firstToken = false;
-                }
+            var answerStream = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetAnswer, Constants.SignalR.Users.Orchestrator, question, cancellationToken);
+            await answerStream.WaitToReadAsync();
+            WaitingForResponse = false;
+            await spinnerCancelToken.CancelAsync();
+            Console.CursorLeft = 0;
 
-                Console.Write(token);
+            bool end = false;
+            while (!end && await answerStream.WaitToReadAsync())
+            {
+                StringBuilder totalStream = new();
+                while (!end && answerStream.TryRead(out var token))
+                {
+                    totalStream.Append(token);
+
+                    if (end = totalStream.ToString().EndsWith(Constants.Token.EndToken))
+                    {
+                        break;
+                    }
+
+                    Console.Write(token);
+                }
             }
 
-            WaitingForResponse = false;
             Console.WriteLine();
 
             _log.LogInformation("Time to answer: {tta}", timer.Elapsed);
         } while (!cancellationToken.IsCancellationRequested);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public async Task StopAsync(CancellationToken cancellationToken) => await signalr.DisposeAsync();
 }

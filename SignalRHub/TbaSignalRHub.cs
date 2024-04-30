@@ -52,40 +52,51 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
             await this.Clients.AllExcept(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.Reintroduce).ConfigureAwait(false);
         }
-
-        _listeners.TryRemove(this.Context.ConnectionId, out _);
     }
 
     [HubMethodName(Constants.SignalR.Functions.GetAnswer)]
-    public async Task<string> GetAnswerAsync(string question)
+    public async Task<ChannelReader<string>> GetAnswerAsync(string targetUser, string question, CancellationToken cancellationToken)
     {
         using IDisposable scope = _log.CreateMethodScope();
 
-        if (UserConnections.TryGetValue(Constants.SignalR.Users.Orchestrator, out var orchConn) && !string.IsNullOrWhiteSpace(orchConn))
+        var id = Guid.NewGuid().ToString();
+        var tcs = Channel.CreateUnbounded<string>(new() { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = true });
+        if (!_completions.TryAdd(id, tcs))
         {
-            return await this.Clients.Client(orchConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
+            _log.LogWarning("Error adding completion to dictionary!");
         }
-        else
-        {
-            _log.LogError("Unable to send GetAnswer request to orchestrator; connection not found!");
-            return "ERROR: Orchestrator not connected!";
-        }
+
+        var conn = await WaitForUserToConnectAsync(targetUser, cancellationToken: cancellationToken);
+        await this.Clients.Client(conn).SendAsync("SendAnswerBack", id, question, cancellationToken);
+        return tcs.Reader;
     }
 
-    [HubMethodName(Constants.SignalR.Functions.AskExpert)]
-    public async Task<string> AskExpertAsync(string expertName, string question)
+    [HubMethodName(Constants.SignalR.Functions.SendAnswerBack)]
+    public async Task SendAnswerBackAsync(string completionId, IAsyncEnumerable<string> answerStream)
     {
         using IDisposable scope = _log.CreateMethodScope();
 
-        if (UserConnections.TryGetValue(expertName, out var expertConn) && !string.IsNullOrWhiteSpace(expertConn))
+        _log.BeginScope("User[{callingUserId}]", this.Context.UserIdentifier ?? "unknown user");
+
+        if (!_completions.TryRemove(completionId, out var completion))
         {
-            return await this.Clients.Client(expertConn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default).ConfigureAwait(false);
+            _log.LogWarning("Unable to get completion {completionId} from dictionary!", completionId);
         }
         else
         {
-            _log.LogError("Unable to send GetAnswer request to {expertName}; connection not found!", expertName);
-            return $@"ERROR: Expert '{expertName}' is not here!";
+            _log.LogTrace("Writing to stream");
+            await foreach (var s in answerStream)
+            {
+                if (!completion.Writer.TryWrite(s))
+                {
+                    _log.LogWarning("Error writing token!");
+                }
+            }
+
+            completion.Writer.Complete();
         }
+
+        _log.LogTrace("Completed.");
     }
 
     [HubMethodName(Constants.SignalR.Functions.Introduce)]
@@ -101,81 +112,12 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         _log.LogDebug("Introduction for {expertName} sent to Orchestrator", name);
     }
 
-    private static readonly ConcurrentDictionary<string, Channel<string>> _listeners = [];
-
-    [HubMethodName(Constants.SignalR.Functions.WriteToResponseStream)]
-    public async Task WriteToResponseStreamAsync(IAsyncEnumerable<string> incomingStream)
-    {
-        using var scope = _log.CreateMethodScope();
-
-        await WaitForListenerAsync();
-
-        if (_listeners.TryGetValue(this.Context.ConnectionId, out Channel<string>? channel))
-        {
-            var ended = false;
-            await foreach (var s in incomingStream)
-            {
-                await channel.Writer.WriteAsync(s);
-                if (ended = s.EndsWith(Constants.Token.EndToken))
-                {
-                    break;
-                }
-            }
-
-            if (!ended)
-            {
-                await channel.Writer.WriteAsync(Constants.Token.EndToken);
-            }
-        }
-        else
-        {
-            _log.LogWarning("No listeners subscribed to {user}. Ignoring response stream writing.", this.Context.UserIdentifier);
-        }
-    }
-
-    [HubMethodName(Constants.SignalR.Functions.WriteChannelToResponseStream)]
-    public async Task WriteChannelToResponseStreamAsync(ChannelReader<string> incomingStream)
-    {
-        using var scope = _log.CreateMethodScope();
-
-        await WaitForListenerAsync();
-
-        if (_listeners.TryGetValue(this.Context.ConnectionId, out Channel<string>? channel))
-        {
-            var end = false;
-            while (!end && await incomingStream.WaitToReadAsync())
-            {
-                while (!end && incomingStream.TryRead(out var s))
-                {
-                    await channel.Writer.WriteAsync(s);
-                    end = s.EndsWith(Constants.Token.EndToken);
-                }
-            }
-        }
-        else
-        {
-            _log.LogWarning("No listeners subscribed to {user}. Ignoring response stream writing.", this.Context.UserIdentifier);
-        }
-    }
-
-    [HubMethodName(Constants.SignalR.Functions.ListenToResponseStream)]
-    public async Task<ChannelReader<string>> ListenToResponseStreamAsync(string fromUser)
-    {
-        using var scope = _log.CreateMethodScope();
-
-        var connInfo = await WaitForUserToConnectAsync(Throws.IfNullOrWhiteSpace(fromUser));
-
-        Channel<string> channel = _listeners.GetOrAdd(connInfo, _ => Channel.CreateUnbounded<string>());
-        _log.LogTrace("Listener {listener} connected to {user} ({connectionInfo})", this.Context.ConnectionId, fromUser, connInfo);
-        return channel;
-    }
+    private static readonly ConcurrentDictionary<string, Channel<string>> _completions = [];
 
     [return: NotNull]
-    private async Task<string> WaitForUserToConnectAsync(string user, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    private async Task<string> WaitForUserToConnectAsync([NotNull] string user, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(user);
-
-        _log.LogTrace("Waiting for {user} to connect...", user);
+        _log.LogTrace("Waiting for {user} to connect...", Throws.IfNullOrWhiteSpace(user));
 
         var waitTask = Task.Run(async () =>
         {
@@ -201,29 +143,5 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         _log.LogDebug("{user} connected.", user);
 
         return waitTask.Result;
-    }
-
-    [return: NotNull]
-    private async Task WaitForListenerAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
-    {
-        _log.LogTrace("Waiting for listener for {user} ...", this.Context.UserIdentifier);
-        var waitTask = Task.Run(async () =>
-        {
-            while (!_listeners.ContainsKey(this.Context.ConnectionId))
-            {
-                await Task.Delay(100, cancellationToken);
-            }
-        }, cancellationToken);
-
-        Task completedTask = await Task.WhenAny(waitTask, Task.Run(async () => await Task.Delay(timeout ?? TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false), cancellationToken)).ConfigureAwait(false);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (completedTask != waitTask)
-        {
-            throw new TimeoutException($@"Timed out waiting for any listener to connect.");
-        }
-
-        _log.LogDebug("One/more listeners connected to {user}.", this.Context.UserIdentifier);
     }
 }

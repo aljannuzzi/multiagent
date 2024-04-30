@@ -1,4 +1,4 @@
-﻿namespace TBAStatReader;
+﻿namespace Events_SignalR;
 
 using Common;
 

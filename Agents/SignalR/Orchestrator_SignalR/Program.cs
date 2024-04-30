@@ -4,8 +4,6 @@ using Common.Extensions;
 
 using Microsoft.Extensions.Hosting;
 
-using TBAStatReader;
-
 internal partial class Program
 {
     private static async Task Main(string[] args)

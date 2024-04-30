@@ -6,8 +6,6 @@ using Microsoft.Extensions.Hosting;
 
 using TBAAPI.V3Client.Api;
 
-using TBAStatReader;
-
 internal partial class Program
 {
     private static async Task Main(string[] args)

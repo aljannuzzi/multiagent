@@ -1,4 +1,4 @@
-﻿namespace TBAStatReader;
+﻿namespace Districts_SignalR;
 
 using Common;
 
