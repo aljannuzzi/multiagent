@@ -18,22 +18,27 @@ internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory,
 
     protected override async Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
     {
-        this.SignalR.On<string, string>(Constants.SignalR.Functions.Introduce, (n, d) => AddExpert(n, d, cancellationToken));
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.Introduce, AddExpert);
         this.SignalR.On<string>(Constants.SignalR.Functions.ExpertLeft, RemoveExpert);
+
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.SendStreamedAnswerBack, (id, prompt) =>
+        {
+            _log.LogTrace("SendAnswerBack invoked");
+            _kernel.Data["channelId"] = id;
+            return this.SignalR.SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings)).Select(i => i.ToString()));
+        });
+
+        _log.LogDebug("Subscribed to {signalrFunction}", Constants.SignalR.Functions.SendStreamedAnswerBack);
 
         await base.AfterSignalRConnectedAsync(cancellationToken);
     }
 
-    private void AddExpert(string name, string description, CancellationToken cancellationToken)
+    private void AddExpert(string name, string description)
     {
         using IDisposable scope = _log.CreateMethodScope();
 
         _log.LogDebug("Adding {expertName} to panel...", name);
-        _kernel.ImportPluginFromFunctions(name, [_kernel.CreateFunctionFromMethod(async (string prompt) =>
-            {
-                var answerStream = await this.SignalR.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetAnswer, name, prompt, cancellationToken);
-                await this.SignalR.SendAsync(Constants.SignalR.Functions.SendAnswerBack, _kernel.Data["channelId"], answerStream);
-            },
+        _kernel.ImportPluginFromFunctions(name, [_kernel.CreateFunctionFromMethod((string prompt) => this.SignalR.InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, name, prompt),
             name, description,
             [new ("prompt") { IsRequired = true, ParameterType = typeof(string) }],
             new () { Description = "Prompt response as a JSON object or array to be inferred upon.", ParameterType = typeof(string) })]

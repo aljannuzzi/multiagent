@@ -20,7 +20,9 @@ public static class Constants
         {
             public const string GetAnswer = nameof(GetAnswer);
 
-            public const string SendAnswerBack = nameof(SendAnswerBack);
+            public const string GetStreamedAnswer = nameof(GetStreamedAnswer);
+
+            public const string SendStreamedAnswerBack = nameof(SendStreamedAnswerBack);
 
             public const string Introduce = nameof(Introduce);
 
@@ -29,6 +31,8 @@ public static class Constants
             public const string ExpertJoined = nameof(ExpertJoined);
 
             public const string ExpertLeft = nameof(ExpertLeft);
+
+            public const string PostStatus = nameof(PostStatus);
         }
     }
 }

@@ -54,10 +54,28 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         }
     }
 
+    [HubMethodName(Constants.SignalR.Functions.PostStatus)]
+    public Task PostStatusAsync(string message) => this.Clients.All.SendAsync(Constants.SignalR.Functions.PostStatus, this.Context.UserIdentifier, message);
+
     [HubMethodName(Constants.SignalR.Functions.GetAnswer)]
-    public async Task<ChannelReader<string>> GetAnswerAsync(string targetUser, string question, CancellationToken cancellationToken)
+    public async Task<string> GetAnswerAsync(string targetUser, string question)
     {
         using IDisposable scope = _log.CreateMethodScope();
+
+        var conn = await WaitForUserToConnectAsync(targetUser);
+
+        _log.LogTrace("Sending request to {user}", targetUser);
+        var result = await this.Clients.Client(conn).InvokeAsync<string>(Constants.SignalR.Functions.GetAnswer, question, default);
+        _log.LogTrace("Response received.");
+
+        return result;
+    }
+
+    [HubMethodName(Constants.SignalR.Functions.GetStreamedAnswer)]
+    public async Task<ChannelReader<string>> GetStreamedAnswerAsync(string targetUser, string question, CancellationToken cancellationToken)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+        cancellationToken.Register(() => _log.LogWarning("CANCELLED."));
 
         var id = Guid.NewGuid().ToString();
         var tcs = Channel.CreateUnbounded<string>(new() { SingleWriter = true, SingleReader = true, AllowSynchronousContinuations = true });
@@ -67,18 +85,21 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         }
 
         var conn = await WaitForUserToConnectAsync(targetUser, cancellationToken: cancellationToken);
-        await this.Clients.Client(conn).SendAsync("SendAnswerBack", id, question, cancellationToken);
+
+        _log.LogTrace("Sending request to {user}", targetUser);
+
+        await this.Clients.Client(conn).SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, question);
         return tcs.Reader;
     }
 
-    [HubMethodName(Constants.SignalR.Functions.SendAnswerBack)]
-    public async Task SendAnswerBackAsync(string completionId, IAsyncEnumerable<string> answerStream)
+    [HubMethodName(Constants.SignalR.Functions.SendStreamedAnswerBack)]
+    public async Task SendStreamedAnswerBackAsync(string completionId, IAsyncEnumerable<string> answerStream)
     {
         using IDisposable scope = _log.CreateMethodScope();
 
         _log.BeginScope("User[{callingUserId}]", this.Context.UserIdentifier ?? "unknown user");
 
-        if (!_completions.TryRemove(completionId, out var completion))
+        if (!_completions.TryRemove(completionId, out Channel<string>? completion))
         {
             _log.LogWarning("Unable to get completion {completionId} from dictionary!", completionId);
         }
@@ -106,7 +127,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
         await WaitForUserToConnectAsync(Constants.SignalR.Users.Orchestrator);
 
-        _log.LogDebug("Introduction received: {expertName}", name);
+        _log.LogTrace("Introduction received: {expertName}", name);
 
         await this.Clients.Client(UserConnections[Constants.SignalR.Users.Orchestrator]).SendAsync(Constants.SignalR.Functions.Introduce, name, description);
         _log.LogDebug("Introduction for {expertName} sent to Orchestrator", name);

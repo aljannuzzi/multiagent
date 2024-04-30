@@ -23,6 +23,11 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         signalr.On<string>(Constants.SignalR.Functions.ExpertJoined, expertName => _log.LogDebug("{expertName} is now available.", expertName));
         signalr.On<string>(Constants.SignalR.Functions.ExpertLeft, expertName => _log.LogDebug("{expertName} has disconnected.", expertName));
+        signalr.On<string, string>(Constants.SignalR.Functions.PostStatus, (user, message) =>
+        {
+            Console.CursorLeft = 0;
+            Console.WriteLine("{0}: {1}", user, message);
+        });
 
         _log.LogInformation("Connecting to server...");
 
@@ -58,14 +63,38 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
             var t = Task.Run(() => runSpinnerAsync(combinedCancelToken.Token), combinedCancelToken.Token);
 
             WaitingForResponse = true;
-            var answerStream = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetAnswer, Constants.SignalR.Users.Orchestrator, question, cancellationToken);
-            await answerStream.WaitToReadAsync();
+            System.Threading.Channels.ChannelReader<string> answerStream = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetStreamedAnswer, Constants.SignalR.Users.Orchestrator, question, cancellationToken);
+
+            Console.WriteLine("Waiting for response from channel stream");
+            await answerStream.WaitToReadAsync(cancellationToken);
+            string firstToken;
+            do
+            {
+                firstToken = await answerStream.ReadAsync(cancellationToken);
+                if (string.IsNullOrEmpty(firstToken))
+                {
+                    await Task.Delay(100, cancellationToken);
+                }
+                else
+                {
+                    break;
+                }
+            } while (!cancellationToken.IsCancellationRequested);
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                continue;
+            }
+
             WaitingForResponse = false;
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
 
-            bool end = false;
-            while (!end && await answerStream.WaitToReadAsync())
+            Console.WriteLine("Stream response received");
+
+            Console.Write(firstToken);
+            var end = false;
+            while (!end && await answerStream.WaitToReadAsync(cancellationToken))
             {
                 StringBuilder totalStream = new();
                 while (!end && answerStream.TryRead(out var token))

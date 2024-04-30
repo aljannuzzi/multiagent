@@ -59,19 +59,21 @@ public abstract class Expert : IHostedService
         }
 
         await AfterSignalRConnectedAsync(cancellationToken);
+
+#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        _kernel.FunctionFilters.Add(new LogFunctionInvocationFilter(async p =>
+        {
+            _log.LogTrace("{function}{result}", p.Message, p.OptionalResult ?? string.Empty);
+            await this.SignalR.SendAsync(Constants.SignalR.Functions.PostStatus, p.Message).ConfigureAwait(false);
+        }, includeResult: true));
+#pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     }
 
     protected virtual Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
     {
-        _log.LogInformation("Awaiting question...");
-        this.SignalR.On<string, string>(Constants.SignalR.Functions.SendAnswerBack, (id, prompt) =>
-        {
-            _log.LogTrace("SendAnswerBack invoked");
-            _kernel.Data["channelId"] = id;
-            return this.SignalR.SendAsync(Constants.SignalR.Functions.SendAnswerBack, id, _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings)).Select(i => i.ToString()));
-        });
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, async prompt => (await _kernel.InvokePromptAsync(prompt, new(_promptSettings), cancellationToken: cancellationToken)).ToString());
 
-        _log.LogDebug("Subscribed to {signalrFunction}", Constants.SignalR.Functions.SendAnswerBack);
+        _log.LogInformation("Awaiting question...");
 
         return Task.CompletedTask;
     }
