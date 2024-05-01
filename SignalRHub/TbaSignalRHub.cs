@@ -67,7 +67,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
     }
 
     [HubMethodName(Constants.SignalR.Functions.PostStatus)]
-    public Task PostStatusAsync(string message) => this.Clients.All.SendAsync(Constants.SignalR.Functions.PostStatus, this.Context.UserIdentifier, message);
+    public Task PostStatusAsync(string message) => this.Clients.User(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.PostStatus, this.Context.UserIdentifier, message);
 
     [HubMethodName(Constants.SignalR.Functions.GetAnswer)]
     public async Task<string> GetAnswerAsync(string targetUser, string question)
