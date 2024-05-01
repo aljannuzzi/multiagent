@@ -54,26 +54,27 @@ public abstract class Expert : IHostedService
 
         await ConnectToSignalRAsync(cancellationToken);
 
+#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+        _kernel.FunctionInvocationFilters.Add(new DefaultFunctionInvocationFilter(_log, this.SignalR));
+#pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+    }
+
+    protected virtual async Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
+    {
+        if (!bool.Parse(await this.SignalR.InvokeAsync<string>("Connect")))
+        {
+            _log.LogError("Connection failed");
+        }
+
         if (this.PerformsIntroduction)
         {
             await IntroduceAsync(cancellationToken);
             this.SignalR.On(Constants.SignalR.Functions.Reintroduce, () => IntroduceAsync(cancellationToken));
         }
 
-        await AfterSignalRConnectedAsync(cancellationToken);
-
-#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        _kernel.FunctionInvocationFilters.Add(new DefaultFunctionInvocationFilter(_log, this.SignalR));
-#pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-    }
-
-    protected virtual Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
-    {
         this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, GetAnswerAsync);
 
         _log.LogInformation("Awaiting question...");
-
-        return Task.CompletedTask;
     }
 
     protected virtual bool PerformsIntroduction { get; } = true;
@@ -99,7 +100,7 @@ public abstract class Expert : IHostedService
             {
                 try
                 {
-                    hubNegotiateResponse = await client.PostAsync(targetEndpoint, null, cancellationToken).ConfigureAwait(false);
+                    hubNegotiateResponse = await client.PostAsync(targetEndpoint, null, cancellationToken);
                     break;
                 }
                 catch (Exception e)
@@ -119,7 +120,7 @@ public abstract class Expert : IHostedService
 
             try
             {
-                connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<ConnectionInfo>(cancellationToken: cancellationToken).ConfigureAwait(false);
+                connInfo = await hubNegotiateResponse.Content.ReadFromJsonAsync<ConnectionInfo>(cancellationToken: cancellationToken);
             }
             catch (Exception ex)
             {
@@ -151,7 +152,7 @@ public abstract class Expert : IHostedService
         this.SignalR = builder.Build();
         await this.SignalR.StartAsync(cancellationToken);
 
-        scope.Dispose();
+        await AfterSignalRConnectedAsync(cancellationToken);
     }
 
     protected Task<string> GetAnswerAsync(string prompt)
