@@ -56,13 +56,13 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
         if (this.Context.UserIdentifier?.EndsWith("Expert", StringComparison.InvariantCultureIgnoreCase) is true)
         {
             await this.Clients.Users([Constants.SignalR.Users.Orchestrator, Constants.SignalR.Users.EndUser])
-                .SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier).ConfigureAwait(false);
+                .SendAsync(Constants.SignalR.Functions.ExpertLeft, this.Context.UserIdentifier);
         }
         else if (this.Context.UserIdentifier is "Orchestrator")
         {
             _log.LogDebug("Orchestrator disconnected. Requesting reintroductions from experts...");
 
-            await this.Clients.AllExcept(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.Reintroduce).ConfigureAwait(false);
+            await this.Clients.AllExcept(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.Reintroduce);
         }
     }
 
@@ -165,7 +165,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
         }, cancellationToken);
 
-        Task completedTask = await Task.WhenAny(waitTask, Task.Run(async () => await Task.Delay(timeout ?? TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false), cancellationToken)).ConfigureAwait(false);
+        Task completedTask = await Task.WhenAny(waitTask, Task.Run(async () => await Task.Delay(timeout ?? TimeSpan.FromSeconds(30), cancellationToken), cancellationToken));
 
         cancellationToken.ThrowIfCancellationRequested();
 

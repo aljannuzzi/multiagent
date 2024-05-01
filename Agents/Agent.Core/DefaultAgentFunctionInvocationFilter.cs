@@ -12,7 +12,7 @@ public class DefaultFunctionInvocationFilter(ILogger log, HubConnection signalr)
         {
             var msg = $"Running {context.Function.Name} ({context.Function.Description}) ...";
             log.LogTrace(msg);
-            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg).ConfigureAwait(false);
+            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg);
         },
         onEnd: async context =>
         {
@@ -28,19 +28,19 @@ public class DefaultFunctionInvocationFilter(ILogger log, HubConnection signalr)
             }
 
             log.LogTrace("{msg} Result: {result}", msg, serializedValue);
-            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg).ConfigureAwait(false);
+            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg);
         },
         onAutoStart: async context =>
         {
             var msg = $"Running AUTO {context.Function.Name} ({context.Function.Description}) ...";
             log.LogTrace(msg);
-            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg).ConfigureAwait(false);
+            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg);
         },
         onAutoEnd: async context =>
         {
             var msg = $"AUTO {context.Function.Name} completed.";
             log.LogTrace("{msg} Result: {result}", msg, context.Result.ToString());
-            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg).ConfigureAwait(false);
+            await signalr.SendAsync(Constants.SignalR.Functions.PostStatus, msg);
         }
 )
 { }

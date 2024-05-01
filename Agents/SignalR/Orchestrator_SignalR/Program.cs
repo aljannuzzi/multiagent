@@ -15,6 +15,5 @@ internal partial class Program
             .AddSemanticKernel();
 
         await b.Build().RunAsync(cts.Token);
-
     }
 }
