@@ -96,20 +96,6 @@ internal partial class Program
 
         b.Services.AddSingleton(hubConn);
 
-        //b.Services.AddHttpClient("Orchestrator", (sp, c) =>
-        //    {
-        //        IConfiguration config = sp.GetRequiredService<IConfiguration>();
-        //        ILogger? log = sp.GetService<ILoggerFactory>()?.CreateLogger("OrchestratorClientCreator");
-        //        c.BaseAddress = new(sp.GetRequiredService<IConfiguration>()["OrchestratorEndpoint"] ?? throw new ArgumentNullException("Endpoint missing for 'Orchestrator' configuration options"));
-        //        log?.LogTrace("SignalR Connection String: {SignalRConnectionString}", signalRConnString);
-
-        //        if (!string.IsNullOrWhiteSpace(signalRConnString))
-        //        {
-        //            c.DefaultRequestHeaders.Add("X-SignalR-Hub-ConnectionString", signalRConnString);
-        //        }
-        //    })
-        //    .AddHttpMessageHandler<DebugHttpHandler>();
-
         await b.Build().RunAsync(cts.Token);
     }
 }
