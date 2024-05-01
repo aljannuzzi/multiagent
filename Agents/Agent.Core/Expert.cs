@@ -35,10 +35,10 @@ public abstract class Expert : IHostedService
         [NotNull] Kernel sk,
         [NotNull] PromptExecutionSettings promptSettings)
     {
-        _config = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
-        _kernel = sk ?? throw new ArgumentNullException(nameof(sk));
-        _promptSettings = promptSettings ?? throw new ArgumentNullException(nameof(promptSettings));
-        _httpFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        _config = Throws.IfNull(appConfig);
+        _kernel = Throws.IfNull(sk);
+        _promptSettings = Throws.IfNull(promptSettings);
+        _httpFactory = Throws.IfNull(httpClientFactory);
 
         this.Name = Throws.IfNullOrWhiteSpace(appConfig.GetRequiredSection("AgentDefinition")["Name"]);
         this.Description = appConfig.GetRequiredSection("AgentDefinition")["Description"];
