@@ -29,12 +29,24 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
             _log.LogDebug("Stored connection {connectionId} for user {userId}", this.Context.ConnectionId, username);
             if (username.EndsWith("expert", StringComparison.InvariantCultureIgnoreCase) is true)
             {
-                _log.LogDebug("Expert {expertName} connected.", username);
-                await this.Clients.User(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.ExpertJoined, username).ConfigureAwait(false);
+                _log.LogInformation("Expert {expertName} connected.", username);
+                await this.Clients.User(Constants.SignalR.Users.EndUser).SendAsync(Constants.SignalR.Functions.ExpertJoined, username);
 
                 _log.LogTrace("All clients notified.");
             }
+            else
+            {
+                _log.LogInformation("{user} connected.", username);
+            }
         }
+    }
+
+    [HubMethodName("Connect")]
+    public async Task<string> ConnectAsync()
+    {
+        await OnConnectedAsync();
+
+        return UserConnections.ContainsKey(this.Context.UserIdentifier!).ToString();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -145,6 +157,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
             string? userConn;
             while (!UserConnections.TryGetValue(user, out userConn) || string.IsNullOrWhiteSpace(userConn))
             {
+                await this.Clients.User(user).SendAsync("Connect");
                 await Task.Delay(100, cancellationToken);
             }
 
