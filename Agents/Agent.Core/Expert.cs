@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Agent.Core;
+
 using Common.Extensions;
 
 using Microsoft.AspNetCore.SignalR.Client;
@@ -61,17 +63,13 @@ public abstract class Expert : IHostedService
         await AfterSignalRConnectedAsync(cancellationToken);
 
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        _kernel.FunctionFilters.Add(new LogFunctionInvocationFilter(async p =>
-        {
-            _log.LogTrace("{function}{result}", p.Message, p.OptionalResult ?? string.Empty);
-            await this.SignalR.SendAsync(Constants.SignalR.Functions.PostStatus, p.Message).ConfigureAwait(false);
-        }, includeResult: true));
+        _kernel.FunctionInvocationFilters.Add(new DefaultFunctionInvocationFilter(_log, this.SignalR));
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     }
 
     protected virtual Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
     {
-        this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, async prompt => (await _kernel.InvokePromptAsync(prompt, new(_promptSettings), cancellationToken: cancellationToken)).ToString());
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, GetAnswerAsync);
 
         _log.LogInformation("Awaiting question...");
 
@@ -151,24 +149,26 @@ public abstract class Expert : IHostedService
             .WithStatefulReconnect();
 
         this.SignalR = builder.Build();
-        await this.SignalR.StartAsync(cancellationToken).ConfigureAwait(false);
+        await this.SignalR.StartAsync(cancellationToken);
+
+        scope.Dispose();
     }
 
-    protected Task<string> GetAnswerAsync(string prompt, CancellationToken cancellationToken)
+    protected Task<string> GetAnswerAsync(string prompt)
     {
         using IDisposable scope = _log.CreateMethodScope();
 
-        return GetAnswerInternalAsync(prompt, cancellationToken);
+        return GetAnswerInternalAsync(prompt);
     }
 
-    protected virtual Task<string> GetAnswerInternalAsync(string prompt, CancellationToken cancellationToken)
+    protected virtual Task<string> GetAnswerInternalAsync(string prompt)
     {
         return ExecuteWithThrottleHandlingAsync(async () =>
         {
             string response;
             try
             {
-                FunctionResult promptResult = await _kernel.InvokePromptAsync(prompt, new(_promptSettings), cancellationToken: cancellationToken).ConfigureAwait(false);
+                FunctionResult promptResult = await _kernel.InvokePromptAsync(prompt, new(_promptSettings));
 
                 _log.LogDebug("Prompt handled. Response: {promptResponse}", promptResult);
 
@@ -182,10 +182,10 @@ public abstract class Expert : IHostedService
             }
 
             return response;
-        }, cancellationToken);
+        });
     }
 
-    protected async Task<T> ExecuteWithThrottleHandlingAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken, int maxRetries = 10)
+    protected async Task<T> ExecuteWithThrottleHandlingAsync<T>(Func<Task<T>> operation, int maxRetries = 10)
     {
         Exception? lastException = null;
         for (var i = 0; i < maxRetries; i++)
@@ -203,7 +203,7 @@ public abstract class Expert : IHostedService
                     if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
                     {
                         _log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
-                        await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime)), cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime))).ConfigureAwait(false);
                     }
                     else
                     {
@@ -219,50 +219,6 @@ public abstract class Expert : IHostedService
 
         _log.LogError(lastException!, "Max retries exceeded.");
         throw lastException!;
-    }
-
-    protected async Task ExecuteWithThrottleHandlingAsync(Func<Task> operation, CancellationToken cancellationToken, int maxRetries = 10)
-    {
-        Exception? lastException = null;
-        for (var i = 0; i < maxRetries; i++)
-        {
-            try
-            {
-                await operation();
-                return;
-            }
-            catch (HttpOperationException ex)
-            {
-                lastException = ex;
-                if (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests && ex.InnerException is Azure.RequestFailedException rex)
-                {
-                    Azure.Response? resp = rex.GetRawResponse();
-                    if (resp?.Headers.TryGetValue("Retry-After", out var waitTime) is true)
-                    {
-                        _log.LogWarning("Responses Throttled! Waiting {retryAfter} seconds to try again...", waitTime);
-                        await Task.Delay(TimeSpan.FromSeconds(int.Parse(waitTime)), cancellationToken).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        if (lastException is not null)
-        {
-            _log.LogError(lastException, "Max retries exceeded.");
-            throw lastException;
-        }
-        else
-        {
-            _log.LogError("Max retries exceeded.");
-        }
     }
 
     public virtual Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

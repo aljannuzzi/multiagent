@@ -88,7 +88,7 @@ internal class TbaSignalRHub(ILoggerFactory loggerFactory) : Hub
 
         _log.LogTrace("Sending request to {user}", targetUser);
 
-        await this.Clients.Client(conn).SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, question);
+        await this.Clients.User(targetUser).SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, question, cancellationToken: cancellationToken);
         return tcs.Reader;
     }
 

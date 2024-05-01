@@ -21,16 +21,35 @@ internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory,
         this.SignalR.On<string, string>(Constants.SignalR.Functions.Introduce, AddExpert);
         this.SignalR.On<string>(Constants.SignalR.Functions.ExpertLeft, RemoveExpert);
 
-        this.SignalR.On<string, string>(Constants.SignalR.Functions.SendStreamedAnswerBack, (id, prompt) =>
+        this.SignalR.On<string, string>(Constants.SignalR.Functions.SendStreamedAnswerBack, async (id, prompt) =>
         {
             _log.LogTrace("SendAnswerBack invoked");
             _kernel.Data["channelId"] = id;
-            return this.SignalR.SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings)).Select(i => i.ToString()));
+            await this.SignalR.SendAsync(Constants.SignalR.Functions.SendStreamedAnswerBack, id, StreamAnswerAsync(prompt));
         });
 
         _log.LogDebug("Subscribed to {signalrFunction}", Constants.SignalR.Functions.SendStreamedAnswerBack);
 
         await base.AfterSignalRConnectedAsync(cancellationToken);
+    }
+
+    private async IAsyncEnumerable<string> StreamAnswerAsync(string prompt)
+    {
+        using IDisposable scope = _log.CreateMethodScope();
+
+        bool first = true;
+        await foreach (var s in _kernel.InvokePromptStreamingAsync(prompt, new(_promptSettings)))
+        {
+            if (first)
+            {
+                _log.LogDebug("Beginning streaming of answer for prompt {prompt}...", prompt);
+                first = false;
+            }
+
+            yield return s.ToString();
+        }
+
+        _log.LogTrace("Streaming complete.");
     }
 
     private void AddExpert(string name, string description)

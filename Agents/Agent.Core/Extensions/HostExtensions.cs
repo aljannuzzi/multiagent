@@ -32,7 +32,7 @@ public static class HostExtensions
         return b;
     }
 
-    public static HostApplicationBuilder AddSemanticKernel(this HostApplicationBuilder b, Action<IServiceProvider, OpenAIPromptExecutionSettings>? configurePromptSettings = default, Action<IServiceProvider, IKernelBuilder>? configureKernel = default)
+    public static HostApplicationBuilder AddSemanticKernel(this HostApplicationBuilder b, Action<IServiceProvider, OpenAIPromptExecutionSettings>? configurePromptSettings = default, Action<IServiceProvider, IKernelBuilder>? configureKernelBuilder = default, Action<IServiceProvider, Kernel>? configureKernel = default)
     {
         b.Services
             .AddSingleton<PromptExecutionSettings>(sp =>
@@ -75,9 +75,11 @@ public static class HostExtensions
                         httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
                 }
 
-                configureKernel?.Invoke(sp, kernelBuilder);
+                configureKernelBuilder?.Invoke(sp, kernelBuilder);
 
                 Kernel kernel = kernelBuilder.Build();
+                configureKernel?.Invoke(sp, kernel);
+
                 return kernel;
             });
 
