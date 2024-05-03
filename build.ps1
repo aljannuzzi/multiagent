@@ -1,14 +1,7 @@
-enum DeploymentType
-{
-    Kubernetes
-    Docker
-    None
-}
-
 param(
-    [switch]$NoBuild = $false,
-    [switch]$NoDocker = $false,
-    [DeploymentType]$Deploy = [DeploymentType]::None
+    [switch]$NoBuild,
+    [switch]$NoDocker,
+    $Deploy = [DeploymentType]::None
 )
 
 function GetSecretObject
@@ -94,4 +87,11 @@ if ($Deploy -eq [DeploymentType]::Kubernetes)
 elseif ($Deploy -eq [DeploymentType]::Docker) {
     Write-Output "Deploying via Docker Compose..."
     docker compose up -d --no-build -f $PSScriptRoot\compose.yml
+}
+
+enum DeploymentType
+{
+    Kubernetes
+    Docker
+    None
 }
