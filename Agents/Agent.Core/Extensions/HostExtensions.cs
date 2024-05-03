@@ -4,6 +4,7 @@ using Assistants;
 
 using Azure.Identity;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,6 +35,8 @@ public static class HostExtensions
 
     public static HostApplicationBuilder AddSemanticKernel(this HostApplicationBuilder b, Action<IServiceProvider, OpenAIPromptExecutionSettings>? configurePromptSettings = default, Action<IServiceProvider, IKernelBuilder>? configureKernelBuilder = default, Action<IServiceProvider, Kernel>? configureKernel = default)
     {
+        ValidateConfigForSemanticKernel(b.Configuration);
+
         b.Services
             .AddSingleton<PromptExecutionSettings>(sp =>
             {
@@ -58,21 +61,33 @@ public static class HostExtensions
                 kernelBuilder.Services.AddSingleton(loggerFactory);
                 kernelBuilder.Plugins.AddFromType<Calendar>();
 
-                if (b.Configuration["AzureOpenAIKey"] is not null)
+                var endpoint = b.Configuration["AzureOpenAIEndpoint"];
+                if (endpoint is not null)
                 {
-                    kernelBuilder.AddAzureOpenAIChatCompletion(
-                        b.Configuration["AzureOpenDeployment"]!,
-                        b.Configuration["AzureOpenAIEndpoint"]!,
-                        b.Configuration["AzureOpenAIKey"]!,
-                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                    if (b.Configuration["AzureOpenAIKey"] is not null)
+                    {
+                        kernelBuilder.AddAzureOpenAIChatCompletion(
+                            b.Configuration["AzureOpenAIModelDeployment"]!,
+                            endpoint,
+                            b.Configuration["AzureOpenAIKey"]!,
+                            httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                    }
+                    else
+                    {
+                        kernelBuilder.AddAzureOpenAIChatCompletion(
+                            b.Configuration["AzureOpenAIModelDeployment"]!,
+                            endpoint,
+                            new DefaultAzureCredential(),
+                            httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+                    }
                 }
-                else
+
+                endpoint = b.Configuration["OpenAIEndpoint"];
+                if (endpoint is not null)
                 {
-                    kernelBuilder.AddAzureOpenAIChatCompletion(
-                        b.Configuration["AzureOpenDeployment"]!,
-                        b.Configuration["AzureOpenAIEndpoint"]!,
-                        new DefaultAzureCredential(),
-                        httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
+#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                    kernelBuilder.AddOpenAIChatCompletion(b.Configuration["OpenAIModelId"]!, new Uri(endpoint), b.Configuration["OpenAIKey"] ?? string.Empty);
+#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
                 }
 
                 configureKernelBuilder?.Invoke(sp, kernelBuilder);
@@ -84,6 +99,35 @@ public static class HostExtensions
             });
 
         return b;
+    }
+
+    private static void ValidateConfigForSemanticKernel(IConfiguration config)
+    {
+        var azureOpenAiEndpointValue = config["AzureOpenAIEndpoint"];
+
+        if (!string.IsNullOrEmpty(azureOpenAiEndpointValue))
+        {
+            Throws.IfNullOrWhiteSpace(config["AzureOpenAIModelDeployment"]);
+        }
+
+        var openaiEndpoint = config["OpenAIEndpoint"];
+        if (!string.IsNullOrEmpty(openaiEndpoint))
+        {
+            if (!string.IsNullOrEmpty(azureOpenAiEndpointValue))
+            {
+                throw new ArgumentException("Only one of 'AzureOpenAIEndpoint' or 'OpenAIEndpoint' can be specified. Check your configuration and try again.");
+            }
+
+            Throws.IfNullOrWhiteSpace(config["OpenAIModelId"]);
+
+            if (string.IsNullOrWhiteSpace(config["OpenAIKey"]))
+            {
+                if (!openaiEndpoint.Contains("localhost", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Missing 'OpenAIKey'");
+                }
+            }
+        }
     }
 
     public static HostApplicationBuilder AddSemanticKernel<TApi>(this HostApplicationBuilder b, Action<IServiceProvider, OpenAIPromptExecutionSettings>? configurePromptSettings = default, Action<IServiceProvider, IKernelBuilder>? configureKernel = default) => AddSemanticKernel(b, configurePromptSettings,
