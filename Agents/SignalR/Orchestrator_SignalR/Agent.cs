@@ -16,7 +16,7 @@ internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory,
 {
     protected override bool PerformsIntroduction { get; } = false;
 
-    protected override async Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
+    protected override async Task AfterSignalRConnectedAsync()
     {
         this.SignalR.On<string, string>(Constants.SignalR.Functions.Introduce, AddExpert);
         this.SignalR.On<string>(Constants.SignalR.Functions.ExpertLeft, RemoveExpert);
@@ -30,7 +30,7 @@ internal class Agent(IConfiguration configuration, ILoggerFactory loggerFactory,
 
         _log.LogDebug("Subscribed to {signalrFunction}", Constants.SignalR.Functions.SendStreamedAnswerBack);
 
-        await base.AfterSignalRConnectedAsync(cancellationToken);
+        await base.AfterSignalRConnectedAsync();
     }
 
     private async IAsyncEnumerable<string> StreamAnswerAsync(string prompt)
