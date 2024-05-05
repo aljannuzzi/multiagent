@@ -8,9 +8,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{58E5DCD0-ECDD-4A0A-93EB-68DCD02AAA71}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		build.ps1 = build.ps1
+		compose.yml = compose.yml
 		Directory.Build.props = Directory.Build.props
 		Directory.Packages.props = Directory.Packages.props
-		launch.ps1 = launch.ps1
+		k8s.deploy.yml = k8s.deploy.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Agents", "Agents", "{A1B90F1A-BB18-4826-A460-257820CCDC70}"
@@ -35,7 +37,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Districts_SignalR", "Agents
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SignalRHub", "SignalRHub\SignalRHub.csproj", "{4E1D42F3-CB94-4637-B733-FDE5FEC820ED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.Core", "Agents\Agent.Core\Agent.Core.csproj", "{F20C254B-44CA-41D9-B42F-6668D653B1D4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Agent.Core", "Agents\Agent.Core\Agent.Core.csproj", "{F20C254B-44CA-41D9-B42F-6668D653B1D4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
