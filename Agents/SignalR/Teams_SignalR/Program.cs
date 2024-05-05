@@ -13,7 +13,7 @@ internal partial class Program
         CancellationTokenSource cts = ProgramHelpers.CreateCancellationTokenSource();
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args);
-        b.ConfigureExpertDefaults<Agent>();
+        b.AddExpert<Agent>();
 
         b.AddSemanticKernel<TeamApi>();
 

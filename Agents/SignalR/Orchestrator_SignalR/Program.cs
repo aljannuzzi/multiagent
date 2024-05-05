@@ -11,7 +11,7 @@ internal partial class Program
         CancellationTokenSource cts = ProgramHelpers.CreateCancellationTokenSource();
 
         HostApplicationBuilder b = Host.CreateApplicationBuilder(args)
-            .ConfigureExpertDefaults<Agent>()
+            .AddExpert<Agent>()
             .AddSemanticKernel();
 
         await b.Build().RunAsync(cts.Token);

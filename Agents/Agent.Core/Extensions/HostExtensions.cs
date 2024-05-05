@@ -15,8 +15,10 @@ using TBAAPI.V3Client.Client;
 
 public static class HostExtensions
 {
-    public static HostApplicationBuilder ConfigureExpertDefaults<T>(this HostApplicationBuilder b) where T : notnull, Expert
+    public static HostApplicationBuilder AddExpert<T>(this HostApplicationBuilder b) where T : notnull, Expert
     {
+        ValidateConfigForExpert(b.Configuration);
+
         b.Services.AddHostedService<T>()
             .AddHttpClient()
             .AddTransient<DebugHttpHandler>()
