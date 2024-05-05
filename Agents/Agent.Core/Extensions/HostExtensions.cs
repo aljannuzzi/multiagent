@@ -33,6 +33,12 @@ public static class HostExtensions
         return b;
     }
 
+    private static void ValidateConfigForExpert(ConfigurationManager configuration)
+    {
+        Throws.IfNullOrWhiteSpace(configuration[Constants.Configuration.Paths.AgentName]);
+        Throws.IfNullOrWhiteSpace(configuration[Constants.Configuration.VariableNames.SignalREndpoint]);
+    }
+
     public static HostApplicationBuilder AddSemanticKernel(this HostApplicationBuilder b, Action<IServiceProvider, OpenAIPromptExecutionSettings>? configurePromptSettings = default, Action<IServiceProvider, IKernelBuilder>? configureKernelBuilder = default, Action<IServiceProvider, Kernel>? configureKernel = default)
     {
         ValidateConfigForSemanticKernel(b.Configuration);
@@ -42,7 +48,7 @@ public static class HostExtensions
             {
                 var settings = new OpenAIPromptExecutionSettings
                 {
-                    ChatSystemPrompt = Throws.IfNullOrWhiteSpace(b.Configuration["SystemPrompt"], message: "Missing SystemPrompt environment variable"),
+                    ChatSystemPrompt = Throws.IfNullOrWhiteSpace(b.Configuration[Constants.Configuration.VariableNames.SystemPrompt], message: "Missing SystemPrompt environment variable"),
                     Temperature = 0.1,
                     ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
                     User = Environment.MachineName
@@ -61,13 +67,13 @@ public static class HostExtensions
                 kernelBuilder.Services.AddSingleton(loggerFactory);
                 kernelBuilder.Plugins.AddFromType<Calendar>();
 
-                var endpoint = b.Configuration["AzureOpenAIEndpoint"];
+                var endpoint = b.Configuration[Constants.Configuration.VariableNames.AzureOpenAIEndpoint];
                 if (endpoint is not null)
                 {
                     if (b.Configuration["AzureOpenAIKey"] is not null)
                     {
                         kernelBuilder.AddAzureOpenAIChatCompletion(
-                            b.Configuration["AzureOpenAIModelDeployment"]!,
+                            b.Configuration[Constants.Configuration.VariableNames.AzureOpenAIModelDeployment]!,
                             endpoint,
                             b.Configuration["AzureOpenAIKey"]!,
                             httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
@@ -75,7 +81,7 @@ public static class HostExtensions
                     else
                     {
                         kernelBuilder.AddAzureOpenAIChatCompletion(
-                            b.Configuration["AzureOpenAIModelDeployment"]!,
+                            b.Configuration[Constants.Configuration.VariableNames.AzureOpenAIModelDeployment]!,
                             endpoint,
                             new DefaultAzureCredential(),
                             httpClient: httpClientFactory.CreateClient("AzureOpenAi"));
@@ -103,11 +109,11 @@ public static class HostExtensions
 
     private static void ValidateConfigForSemanticKernel(IConfiguration config)
     {
-        var azureOpenAiEndpointValue = config["AzureOpenAIEndpoint"];
+        var azureOpenAiEndpointValue = config[Constants.Configuration.VariableNames.AzureOpenAIEndpoint];
 
         if (!string.IsNullOrEmpty(azureOpenAiEndpointValue))
         {
-            Throws.IfNullOrWhiteSpace(config["AzureOpenAIModelDeployment"]);
+            Throws.IfNullOrWhiteSpace(config[Constants.Configuration.VariableNames.AzureOpenAIModelDeployment]);
         }
 
         var openaiEndpoint = config["OpenAIEndpoint"];
@@ -134,7 +140,7 @@ public static class HostExtensions
         (sp, kb) =>
         {
             var expert = (TApi)Activator.CreateInstance(typeof(TApi), new Configuration(new Dictionary<string, string>(),
-                new Dictionary<string, string>() { { "X-TBA-Auth-Key", Throws.IfNullOrWhiteSpace(b.Configuration["TBA_API_KEY"], message: "Missing TBA_API_KEY environment variable") } },
+                new Dictionary<string, string>() { { "X-TBA-Auth-Key", Throws.IfNullOrWhiteSpace(b.Configuration[Constants.Configuration.VariableNames.TBA_API_KEY], message: "Missing TBA_API_KEY environment variable") } },
                 new Dictionary<string, string>()), sp.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi).Name))!;
             kb.Plugins.AddFromObject(expert);
 

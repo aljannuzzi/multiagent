@@ -1,6 +1,43 @@
 ﻿namespace Common;
+
+using System.ComponentModel.DataAnnotations;
+
+using Microsoft.Extensions.Configuration;
+
 public static class Constants
 {
+    public static class Configuration
+    {
+        public static class SectionNames
+        {
+            public const string AgentDefinition = nameof(AgentDefinition);
+        }
+
+        public static class VariableNames
+        {
+            public const string TBA_API_KEY = nameof(TBA_API_KEY);
+
+            public const string Name = nameof(Name);
+
+            public const string Description = nameof(Description);
+
+            public const string SignalREndpoint = nameof(SignalREndpoint);
+
+            public const string AzureOpenAIEndpoint = nameof(AzureOpenAIEndpoint);
+
+            public const string AzureOpenAIModelDeployment = nameof(AzureOpenAIModelDeployment);
+
+            public const string SystemPrompt = nameof(SystemPrompt);
+        }
+
+        public static class Paths
+        {
+            public static readonly string AgentName = ConfigurationPath.Combine(SectionNames.AgentDefinition, VariableNames.Name);
+
+            public static readonly string AgentDescription = ConfigurationPath.Combine(SectionNames.AgentDefinition, VariableNames.Description);
+        }
+    }
+
     public static class Token
     {
         public const string EndToken = @"!END!";

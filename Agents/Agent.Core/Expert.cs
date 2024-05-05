@@ -40,8 +40,8 @@ public abstract class Expert : IHostedService
         _promptSettings = Throws.IfNull(promptSettings);
         _httpFactory = Throws.IfNull(httpClientFactory);
 
-        this.Name = Throws.IfNullOrWhiteSpace(appConfig.GetRequiredSection("AgentDefinition")["Name"]);
-        this.Description = appConfig.GetRequiredSection("AgentDefinition")["Description"];
+        this.Name = Throws.IfNullOrWhiteSpace(appConfig[Constants.Configuration.Paths.AgentName]);
+        this.Description = appConfig[Constants.Configuration.Paths.AgentDescription];
 
         _log = Throws.IfNull(loggerFactory).CreateLogger(this.Name);
     }
@@ -59,7 +59,7 @@ public abstract class Expert : IHostedService
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
     }
 
-    protected virtual async Task AfterSignalRConnectedAsync(CancellationToken cancellationToken)
+    protected virtual async Task AfterSignalRConnectedAsync()
     {
         if (!bool.Parse(await this.SignalR.InvokeAsync<string>("Connect")))
         {
@@ -68,8 +68,8 @@ public abstract class Expert : IHostedService
 
         if (this.PerformsIntroduction)
         {
-            await IntroduceAsync(cancellationToken);
-            this.SignalR.On(Constants.SignalR.Functions.Reintroduce, () => IntroduceAsync(cancellationToken));
+            await IntroduceAsync();
+            this.SignalR.On(Constants.SignalR.Functions.Reintroduce, IntroduceAsync);
         }
 
         this.SignalR.On<string, string>(Constants.SignalR.Functions.GetAnswer, GetAnswerAsync);
@@ -79,10 +79,10 @@ public abstract class Expert : IHostedService
 
     protected virtual bool PerformsIntroduction { get; } = true;
 
-    protected async Task IntroduceAsync(CancellationToken cancellationToken)
+    protected async Task IntroduceAsync()
     {
         _log.LogDebug("Introducing myself...");
-        await this.SignalR.SendAsync(Constants.SignalR.Functions.Introduce, this.Name, _config.GetRequiredSection("AgentDefinition")["Description"], cancellationToken: cancellationToken).ConfigureAwait(false);
+        await this.SignalR.SendAsync(Constants.SignalR.Functions.Introduce, this.Name, _config[Constants.Configuration.Paths.AgentDescription]);
     }
 
     private async Task ConnectToSignalRAsync(CancellationToken cancellationToken)
@@ -93,7 +93,7 @@ public abstract class Expert : IHostedService
         ConnectionInfo? connInfo = default;
         using (IDisposable? negotiationScope = _log.BeginScope("negotiation"))
         {
-            var targetEndpoint = $@"{Throws.IfNullOrWhiteSpace(_config["SignalREndpoint"])}?userid={this.Name}";
+            var targetEndpoint = $@"{Throws.IfNullOrWhiteSpace(_config[Constants.Configuration.VariableNames.SignalREndpoint])}?userid={this.Name}";
             HttpClient client = _httpFactory.CreateClient("negotiation");
             HttpResponseMessage hubNegotiateResponse = new();
             for (var i = 0; i < 10; i++)
@@ -112,7 +112,7 @@ public abstract class Expert : IHostedService
 
             if (hubNegotiateResponse is null)
             {
-                _log.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", _config["SignalREndpoint"]);
+                _log.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", _config[Constants.Configuration.VariableNames.SignalREndpoint]);
                 return;
             }
 
@@ -125,7 +125,7 @@ public abstract class Expert : IHostedService
             catch (Exception ex)
             {
                 _log.LogDebug(ex, "Error parsing negotiation response");
-                _log.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", _config["SignalREndpoint"]);
+                _log.LogCritical("Unable to connect to server {signalrHubEndpoint} - Exiting.", _config[Constants.Configuration.VariableNames.SignalREndpoint]);
                 return;
             }
         }
@@ -152,7 +152,7 @@ public abstract class Expert : IHostedService
         this.SignalR = builder.Build();
         await this.SignalR.StartAsync(cancellationToken);
 
-        await AfterSignalRConnectedAsync(cancellationToken);
+        await AfterSignalRConnectedAsync();
     }
 
     protected Task<string> GetAnswerAsync(string prompt)
