@@ -22,12 +22,13 @@ if (-not $NoBuild)
     Start-Job -Name "Build SignalRHub" { param($root) dotnet publish $root\SignalRHub\SignalRHub.csproj -o $root\build\signalrhub } -ArgumentList $PSScriptRoot
     Start-Job -Name "Build TBAStatReader" { param($root) dotnet publish $root\TBAStatReader\TBAStatReader.csproj -o $root\build\client } -ArgumentList $PSScriptRoot
     Start-Job -Name "Build Orchestrator" { param($root) dotnet publish $root\Agents\SignalR\Orchestrator_SignalR\Orchestrator_SignalR.csproj -o $root\build\orchestrator } -ArgumentList $PSScriptRoot
-    Start-Job -Name "Build Districts_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Districts_SignalR\Districts_SignalR.csproj -o $root\build\districtsagent } -ArgumentList $PSScriptRoot
-    Start-Job -Name "Build Events_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Events_SignalR\Events_SignalR.csproj -o $root\build\eventsagent } -ArgumentList $PSScriptRoot
-    Start-Job -Name "Build Matches_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Matches_SignalR\Matches_SignalR.csproj -o $root\build\matchesagent } -ArgumentList $PSScriptRoot
-    Start-Job -Name "Build Teams_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Teams_SignalR\Teams_SignalR.csproj -o $root\build\teamsagent } -ArgumentList $PSScriptRoot
     
     Get-Job | Wait-Job #| Remove-Job
+
+    Start-Job -Name "Build Districts_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Districts_SignalR\Districts_SignalR.csproj -o $root\build\districtsagent } -ArgumentList $PSScriptRoot | Wait-Job
+    Start-Job -Name "Build Events_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Events_SignalR\Events_SignalR.csproj -o $root\build\eventsagent } -ArgumentList $PSScriptRoot | Wait-Job
+    Start-Job -Name "Build Matches_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Matches_SignalR\Matches_SignalR.csproj -o $root\build\matchesagent } -ArgumentList $PSScriptRoot | Wait-Job
+    Start-Job -Name "Build Teams_SignalR" { param($root) dotnet publish $root\Agents\SignalR\Teams_SignalR\Teams_SignalR.csproj -o $root\build\teamsagent } -ArgumentList $PSScriptRoot | Wait-Job
 
     Write-Output ""
 }
