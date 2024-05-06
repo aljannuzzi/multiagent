@@ -1,3 +1,6 @@
+$env:ASPNETCORE_ENVIRONMENT='Development'
+$env:DOTNET_ENVIRONMENT='Development'
+
 Write-Host "Starting hub..."
 ./launch.ps1 signalrhub
 Start-Sleep -Seconds 5
