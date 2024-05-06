@@ -6,14 +6,14 @@ function GetSecretObject {
     ConvertFrom-Json -InputObject $(Get-Content -Path $path -Raw)
 }
 
-function RunBuild([Parameter(Mandatory = $true)][string]$project, [Parameter(Mandatory = $true)][string]$root) {
+function RunBuild([Parameter(Mandatory = $true)][string]$project, [Parameter(Mandatory = $true)][string]$root, [Parameter(Mandatory = $false)][hashtable]$psParams = @{}) {
     Write-Debug "$project -> $root"
     $num = 0
     do {
         $num++
         $result = (dotnet publish $project -o $root -v m)
 
-        if ($PSBoundParameters.ContainsKey('Debug')) {
+        if ($psParams.ContainsKey('Debug')) {
             $resultString = (ConvertTo-Json $result).ToString()
             Write-Debug $resultString
         }

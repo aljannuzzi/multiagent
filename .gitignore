@@ -363,5 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Custom folders for the solution
-build/
+o/
 docker-secrets/
