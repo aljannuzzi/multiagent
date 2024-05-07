@@ -7,7 +7,7 @@ Start-Sleep -Seconds 3
 
 Write-Host "Starting Router/Orchestrator..."
 ./launch.ps1 orchestrator
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 3
 
 Write-Host "Starting User client..."
 ./launch.ps1 client
