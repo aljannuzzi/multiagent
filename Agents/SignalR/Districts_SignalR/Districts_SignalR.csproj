@@ -8,6 +8,9 @@
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Api\DistrictApi.cs" Link="DistrictApi.cs" />
+		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Model\DistrictList.cs" Link="Models\DistrictList.cs" />
+		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Model\DistrictRanking.cs" Link="Models\DistrictRanking.cs" />
+		<Compile Include="..\..\..\tba-client\src\TBAAPI.V3Client\Model\DistrictRankingEventPoints.cs" Link="Models\DistrictRankingEventPoints.cs" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\Agent.Core\Agent.Core.csproj" />
@@ -35,5 +38,8 @@
 		<None Update="Dockerfile">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Models\" />
 	</ItemGroup>
 </Project>

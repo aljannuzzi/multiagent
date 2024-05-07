@@ -21,7 +21,10 @@ public partial class TeamApi
 
     private static readonly JsonDocument EmptyJsonDocument = JsonDocument.Parse("[]");
 
-    public TeamApi(Configuration config, ILogger logger) : this(config) => this.Log = logger;
+    public TeamApi(Configuration config, ILogger logger) : this(config)
+    {
+        this.Log = logger;
+    }
 
     /// <summary>
     /// Searches for teams based on a JMESPath expression.
@@ -73,43 +76,26 @@ public partial class TeamApi
     }
 
     /// <summary>
-    /// Searches for match data based on a JMESPath expression.
+    /// Searches for teams within a district based on a JMESPath expression.
     /// </summary>
-    /// <param name="jmesPathExpression">The JMESPath expression used to filter matches.</param>
+    /// <param name="districtKey">The key of the district to search within.</param>
+    /// <param name="jmesPathExpression">The JMESPath expression used to filter the teams.</param>
     /// <returns>A list of teams that match the JMESPath expression.</returns>
-    [KernelFunction, Description("Searches for match data by team & year based on a JMESPath expression.")]
-    [return: Description("A JSON document with the search results.")]
-    public async Task<JsonDocument> SearchTeamMatchesByYearAsync(
-        [Description("Team Key, eg 'frc254'")] string teamKey,
-        int year,
-        [Description("The query used to filter a JSON document with a single `matches` array of Match objects. Must be a valid JMESPath expression. Use case-insensitive syntax for string-based searches.")] string jmesPathExpression)
+    [KernelFunction, Description("Searches for teams within a district based on a JMESPath expression.")]
+    [return: Description("A list of (non-detailed) teams that match the JMESPath expression.")]
+    public async Task<List<TeamSimple>> SearchDistrictTeamsAsync(
+        [Description("The key of the district to search within.")] string districtKey,
+        [Description("The JMESPath expression used to filter the teams.")] string jmesPathExpression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
-        if (jmesPathExpression.StartsWith("Matches"))
-        {
-            jmesPathExpression = jmesPathExpression.Replace("Matches", "matches");
-        }
 
-        JsonDocument retVal = EmptyJsonDocument;
-        List<Match>? matches = await GetTeamMatchesByYearDetailedAsync(teamKey, year).ConfigureAwait(false);
-        if (matches?.Count is not null and not 0)
-        {
-            JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { matches }, JsonSerialzationOptions.Default);
-            JsonDocument filteredMatches = JsonCons.JmesPath.JsonTransformer.Transform(eltToTransform, jmesPathExpression);
-            this.Log?.LogTrace("JsonCons.JMESPath result: {jsonConsResult}", filteredMatches.RootElement.ToString());
+        List<TeamSimple>? matches = await GetDistrictTeamsAsync(districtKey).ConfigureAwait(false);
 
-            if (filteredMatches is not null)
-            {
-                if ((filteredMatches.RootElement.ValueKind is JsonValueKind.Array && filteredMatches.RootElement.EnumerateArray().Any())
-                    || (filteredMatches.RootElement.ValueKind is JsonValueKind.Object && filteredMatches.RootElement.EnumerateObject().Any()))
-                {
-                    retVal = filteredMatches;
-                }
-            }
-        }
+        JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(JsonSerializer.SerializeToElement(matches, JsonSerialzationOptions.Default), jmesPathExpression);
+        matches = JsonSerializer.Deserialize<List<TeamSimple>>(filteredTeams, JsonSerialzationOptions.Default) ?? [];
 
-        this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(retVal));
+        this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(matches));
 
-        return retVal;
+        return matches;
     }
 }

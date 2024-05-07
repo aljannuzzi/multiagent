@@ -14,56 +14,11 @@
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\APIStatusAppVersion.cs" Link="APIStatusAppVersion.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Award.cs" Link="Award.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\AwardRecipient.cs" Link="AwardRecipient.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\DistrictList.cs" Link="DistrictList.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\DistrictRanking.cs" Link="DistrictRanking.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\DistrictRankingEventPoints.cs" Link="DistrictRankingEventPoints.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EliminationAlliance.cs" Link="EliminationAlliance.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EliminationAllianceBackup.cs" Link="EliminationAllianceBackup.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EliminationAllianceStatus.cs" Link="EliminationAllianceStatus.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Enums.cs" Link="Enums.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Event.cs" Link="Event.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventDistrictPoints.cs" Link="EventDistrictPoints.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventDistrictPointsPoints.cs" Link="EventDistrictPointsPoints.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventDistrictPointsTiebreakers.cs" Link="EventDistrictPointsTiebreakers.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventInsights.cs" Link="EventInsights.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventInsights2016.cs" Link="EventInsights2016.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventInsights2017.cs" Link="EventInsights2017.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventInsights2018.cs" Link="EventInsights2018.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventOPRs.cs" Link="EventOPRs.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventRanking.cs" Link="EventRanking.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventRankingExtraStatsInfo.cs" Link="EventRankingExtraStatsInfo.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventRankingRankings.cs" Link="EventRankingRankings.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventRankingSortOrderInfo.cs" Link="EventRankingSortOrderInfo.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\EventSimple.cs" Link="EventSimple.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Match.cs" Link="Match.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchAlliance.cs" Link="MatchAlliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2015.cs" Link="MatchScoreBreakdown2015.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2015Alliance.cs" Link="MatchScoreBreakdown2015Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2016.cs" Link="MatchScoreBreakdown2016.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2016Alliance.cs" Link="MatchScoreBreakdown2016Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2017.cs" Link="MatchScoreBreakdown2017.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2017Alliance.cs" Link="MatchScoreBreakdown2017Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2018.cs" Link="MatchScoreBreakdown2018.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2018Alliance.cs" Link="MatchScoreBreakdown2018Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2019.cs" Link="MatchScoreBreakdown2019.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2019Alliance.cs" Link="MatchScoreBreakdown2019Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2020.cs" Link="MatchScoreBreakdown2020.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchScoreBreakdown2020Alliance.cs" Link="MatchScoreBreakdown2020Alliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchSimple.cs" Link="MatchSimple.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchSimpleAlliances.cs" Link="MatchSimpleAlliances.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchTimeseries2018.cs" Link="MatchTimeseries2018.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\MatchVideos.cs" Link="MatchVideos.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Media.cs" Link="Media.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Team.cs" Link="Team.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatus.cs" Link="TeamEventStatus.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusAlliance.cs" Link="TeamEventStatusAlliance.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusAllianceBackup.cs" Link="TeamEventStatusAllianceBackup.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusPlayoff.cs" Link="TeamEventStatusPlayoff.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusRank.cs" Link="TeamEventStatusRank.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusRankRanking.cs" Link="TeamEventStatusRankRanking.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamEventStatusRankSortOrderInfo.cs" Link="TeamEventStatusRankSortOrderInfo.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamRobot.cs" Link="TeamRobot.cs" />
-    <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\TeamSimple.cs" Link="TeamSimple.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Webcast.cs" Link="Webcast.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\WLTRecord.cs" Link="WLTRecord.cs" />
     <Compile Include="..\tba-client\src\TBAAPI.V3Client\Model\Zebra.cs" Link="Zebra.cs" />
