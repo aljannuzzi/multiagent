@@ -98,4 +98,21 @@ public partial class TeamApi
 
         return matches;
     }
+
+    private static readonly JsonSerializerOptions SchemaSerializeOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false,
+        AllowTrailingCommas = false,
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict,
+    };
+
+    private Team? SampleTeam;
+
+    [KernelFunction, Description("Gets a JSON representation of a sample object for schema inference. Use to formulate valid JMESPath queries for Search functions.")]
+    public async Task<string> GetSchemaAsync()
+    {
+        SampleTeam = await GetTeamDetailedAsync("frc2046").ConfigureAwait(false);
+
+        return JsonSerializer.Serialize(SampleTeam, SchemaSerializeOptions);
+    }
 }
