@@ -1,5 +1,6 @@
 $env:ASPNETCORE_ENVIRONMENT='Development'
 $env:DOTNET_ENVIRONMENT='Development'
+$env:Logging__LogLevel__TBAStatReader='Warning'
 
 Write-Host "Starting hub..."
 ./launch.ps1 signalrhub

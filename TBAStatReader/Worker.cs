@@ -26,7 +26,9 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
         signalr.On<string, string>(Constants.SignalR.Functions.PostStatus, (user, message) =>
         {
             Console.CursorLeft = 0;
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("{0}: {1}", user, message);
+            Console.ResetColor();
         });
 
         _log.LogInformation("Connecting to server...");
@@ -65,7 +67,6 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
             WaitingForResponse = true;
             System.Threading.Channels.ChannelReader<string> answerStream = await signalr.StreamAsChannelAsync<string>(Constants.SignalR.Functions.GetStreamedAnswer, Constants.SignalR.Users.Orchestrator, question, cancellationToken);
 
-            Console.WriteLine("Waiting for response from channel stream");
             await answerStream.WaitToReadAsync(cancellationToken);
             string firstToken;
             do
@@ -89,8 +90,6 @@ internal class Worker(ILoggerFactory loggerFactory, HubConnection signalr) : IHo
             WaitingForResponse = false;
             await spinnerCancelToken.CancelAsync();
             Console.CursorLeft = 0;
-
-            Console.WriteLine("Stream response received");
 
             Console.Write(firstToken);
             var end = false;
