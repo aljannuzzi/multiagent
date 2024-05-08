@@ -3,6 +3,8 @@
 using System.ComponentModel;
 using System.Text.Json;
 
+using Common;
+
 using JsonCons.JmesPath;
 
 using Microsoft.Extensions.Logging;
@@ -65,5 +67,15 @@ public partial class EventApi
         this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(results));
 
         return results;
+    }
+
+    private Event? _sampleEvent;
+
+    [KernelFunction, Description("Gets a JSON representation of a sample object for schema inference. Use to formulate valid JMESPath queries for Search functions.")]
+    public async Task<string> GetSampleTeamObjectAsync()
+    {
+        _sampleEvent ??= (await GetTeamEventsDetailedAsync("frc2046").ConfigureAwait(false))?.First() ?? throw new ArgumentException("Unable to find any events for frc2046");
+
+        return JsonSerializer.Serialize(_sampleEvent, Constants.SchemaSerializeOptions);
     }
 }

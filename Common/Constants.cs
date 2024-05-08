@@ -1,11 +1,19 @@
 ﻿namespace Common;
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 
 using Microsoft.Extensions.Configuration;
 
 public static class Constants
 {
+    public static readonly JsonSerializerOptions SchemaSerializeOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = false,
+        AllowTrailingCommas = false,
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict,
+    };
+
     public static class Configuration
     {
         public static class SectionNames
