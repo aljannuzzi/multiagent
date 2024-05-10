@@ -32,7 +32,6 @@
 		<ProjectReference Include="..\..\Agent.Core\Agent.Core.csproj" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="JsonCons.JmesPath" />
 		<PackageReference Include="Azure.Identity" />
 		<PackageReference Include="Microsoft.Azure.SignalR.Management" />
 		<PackageReference Include="Microsoft.Extensions.Http" />

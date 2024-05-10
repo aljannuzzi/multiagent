@@ -11,6 +11,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
 		<PackageReference Include="Microsoft.SemanticKernel" />
 		<PackageReference Include="System.Linq.Async" />
+		<PackageReference Include="JsonCons.JmesPath" />
 	</ItemGroup>
 
 	<ItemGroup>
