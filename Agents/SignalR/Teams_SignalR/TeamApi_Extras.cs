@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text.Json;
 
+using Common;
+
 using JsonCons.JmesPath;
 
 using Microsoft.Extensions.Logging;
@@ -95,20 +97,13 @@ public partial class TeamApi
         return matches;
     }
 
-    private static readonly JsonSerializerOptions SchemaSerializeOptions = new(JsonSerializerDefaults.Web)
+    private Team? _sampleTeam;
+
+    [KernelFunction, Description("Gets a JSON representation of a sample object for schema inference. Use to formulate valid JMESPath queries for Search functions.")]
+    public async Task<string> GetSampleTeamObjectAsync()
     {
-        WriteIndented = false,
-        AllowTrailingCommas = false,
-        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict,
-    };
+        _sampleTeam ??= await GetTeamDetailedAsync("frc2046").ConfigureAwait(false);
 
-    private Team? SampleTeam;
-
-    [KernelFunction, Description("Gets a JSON representation of a sample Team object for schema inference. This should be used to formulate valid JMESPath queries for Search functions.")]
-    public async Task<string> GetTeamObjectSchemaAsync()
-    {
-        SampleTeam = await GetTeamDetailedAsync("frc2046").ConfigureAwait(false);
-
-        return JsonSerializer.Serialize(SampleTeam, SchemaSerializeOptions);
+        return JsonSerializer.Serialize(_sampleTeam, Constants.SchemaSerializeOptions);
     }
 }
