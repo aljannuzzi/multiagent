@@ -40,7 +40,6 @@
 		</Content>
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="JsonCons.JmesPath" />
 		<PackageReference Include="Azure.Identity" />
 		<PackageReference Include="Microsoft.Azure.SignalR.Management" />
 		<PackageReference Include="Microsoft.Extensions.Http" />

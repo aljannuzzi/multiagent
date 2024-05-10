@@ -1,5 +1,6 @@
 ﻿namespace TBAAPI.V3Client.Api;
 
+using Agent.Core.Extensions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -31,22 +32,15 @@ public partial class TeamApi
     /// </summary>
     /// <param name="jmesPathExpression">The JMESPath expression used to filter the teams.</param>
     /// <returns>A list of teams that match the JMESPath expression.</returns>
-    [KernelFunction, Description("Searches for teams based on a JMESPath expression.")]
+    [KernelFunction, Description("Searches for teams based on a JMESPath expression. String literals used in jmesPathExpression must always be lower-case.")]
     [return: Description("A collection of JSON documents/objects resulting from the JMESPath expression.")]
-    public async Task<List<JsonDocument>> SearchTeamsAsync([Description("The query used to filter a JSON document with a single `teams` array of Team objects. Must be a valid JMESPath expression. Use lower-case strings for literals when searching.")] string jmesPathExpression)
+    public async Task<List<JsonDocument>> SearchTeamsAsync([Description("The query used to filter a JSON document with a single `teams` array of Team objects. Must be a valid JMESPath expression. Always use lower-case strings for all literals when searching.")] string jmesPathExpression)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(jmesPathExpression);
 
-        JsonTransformer transformer;
-        try
-        {
-            transformer = JsonTransformer.Parse(jmesPathExpression);
-        }
-        catch (JmesPathParseException)
-        {
-            throw new ArgumentException("Invalid JMESPath expression", jmesPathExpression);
-        }
+        JsonTransformer transformer = jmesPathExpression.ToJmesPathForSearch(this.Log);
 
+        this.Log?.LogTrace("Executing JMESPath expression: {jmesPathExpression}", transformer);
         List<JsonDocument> results = [];
         for (var i = 0; ; i++)
         {
@@ -57,7 +51,7 @@ public partial class TeamApi
             }
 
             JsonElement eltToTransform = JsonSerializer.SerializeToElement(new { teams }, JsonSerialzationOptions.Default);
-            JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(eltToTransform, jmesPathExpression);
+            JsonDocument filteredTeams = transformer.Transform(eltToTransform);
             this.Log?.LogTrace("JsonCons.JMESPath result: {jsonConsResult}", filteredTeams.RootElement.ToString());
 
             if (filteredTeams is not null)
@@ -91,7 +85,9 @@ public partial class TeamApi
 
         List<TeamSimple>? matches = await GetDistrictTeamsAsync(districtKey).ConfigureAwait(false);
 
-        JsonDocument filteredTeams = JsonCons.JmesPath.JsonTransformer.Transform(JsonSerializer.SerializeToElement(matches, JsonSerialzationOptions.Default), jmesPathExpression);
+        var transformer = jmesPathExpression.ToJmesPathForSearch(this.Log);
+
+        JsonDocument filteredTeams = transformer.Transform(JsonSerializer.SerializeToElement(matches, JsonSerialzationOptions.Default));
         matches = JsonSerializer.Deserialize<List<TeamSimple>>(filteredTeams, JsonSerialzationOptions.Default) ?? [];
 
         this.Log?.LogDebug("Resulting document: {searchResults}", JsonSerializer.Serialize(matches));
@@ -108,8 +104,8 @@ public partial class TeamApi
 
     private Team? SampleTeam;
 
-    [KernelFunction, Description("Gets a JSON representation of a sample object for schema inference. Use to formulate valid JMESPath queries for Search functions.")]
-    public async Task<string> GetSchemaAsync()
+    [KernelFunction, Description("Gets a JSON representation of a sample Team object for schema inference. This should be used to formulate valid JMESPath queries for Search functions.")]
+    public async Task<string> GetTeamObjectSchemaAsync()
     {
         SampleTeam = await GetTeamDetailedAsync("frc2046").ConfigureAwait(false);
 
