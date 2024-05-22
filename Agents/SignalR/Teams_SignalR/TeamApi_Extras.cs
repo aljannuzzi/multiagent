@@ -21,10 +21,7 @@ public partial class TeamApi
 
     private static readonly JsonDocument EmptyJsonDocument = JsonDocument.Parse("[]");
 
-    public TeamApi(Configuration config, ILogger logger) : this(config)
-    {
-        this.Log = logger;
-    }
+    public TeamApi(Configuration config, ILogger logger) : this(config) => this.Log = logger;
 
     /// <summary>
     /// Searches for teams based on a JMESPath expression.
